@@ -1,6 +1,7 @@
 "use client";
 import { Check, GripVertical, Users } from "lucide-react";
 import type { SaveState, TeamTab } from "./types";
+import { SaveStateLabel } from "./common/SaveStateLabel";
 
 /** タブ切り替え + 右端の保存ステータス表示 */
 export function TabNav({
@@ -38,17 +39,4 @@ export function TabNav({
       </span>
     </nav>
   );
-}
-
-function SaveStateLabel({ state }: { state: SaveState }) {
-  if (state === "saved")
-    return (
-      <>
-        <Check size={14} />
-        保存済み
-      </>
-    );
-  if (state === "saving") return <>保存中…</>;
-  if (state === "dirty") return <>変更あり</>;
-  return <>未保存</>;
 }

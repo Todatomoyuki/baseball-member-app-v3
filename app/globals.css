@@ -244,6 +244,7 @@ input::placeholder {
   border-left: 4px solid #1697e5;
   font-size: 15px;
   font-weight: 700;
+  margin: 6px;
 }
 .section-title > span:last-child {
   font-size: 12px;
@@ -1519,5 +1520,263 @@ footer {
     flex: 1;
     min-width: 0;
     padding: 10px 6px;
+  }
+}
+/* =========================
+   チーム道具管理
+========================= */
+
+.equipment-member-list {
+  display: grid;
+  gap: 10px;
+}
+
+/* 道具を持っている人 */
+.equipment-member {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card);
+  overflow: visible;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    border-color 0.15s ease;
+    margin: 0px 10px 0px 10px ;
+}
+
+/* ドロップ対象になっているとき */
+.equipment-member.drop-over {
+  transform: scale(1.015);
+  outline: 3px solid currentColor;
+}
+
+/* アコーディオンの見出し */
+.equipment-member-header {
+  width: 100%;
+  min-height: 48px;
+  padding: 0px 12px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* 名前 + 背番号 */
+.equipment-member-header > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.equipment-member-header strong {
+  font-size: 15px;
+}
+
+.equipment-member-header small {
+  opacity: 0.55;
+  font-size: 12px;
+}
+
+/* 右側：個数 + 矢印 */
+.equipment-member-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.equipment-member-meta svg {
+  transition: transform 0.2s ease;
+}
+
+.equipment-member-meta svg.open {
+  transform: rotate(180deg);
+}
+
+/* 開いたときの道具一覧 */
+.equipment-items {
+  display: grid;
+  gap: 8px;
+
+  padding:
+    0
+    12px
+    12px;
+}
+
+/* 1つの道具 */
+.equipment-item {
+  position: relative;
+
+  width: 100%;
+  min-height: 54px;
+
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  padding: 10px 12px;
+
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--background);
+
+  text-align: left;
+  cursor: grab;
+  touch-action: none;
+}
+
+.equipment-item:active {
+  cursor: grabbing;
+}
+
+.equipment-item.dragging {
+  opacity: 0.9;
+  z-index: 999;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+/* 道具名 + 備考 */
+.equipment-item > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.equipment-note {
+  opacity: 0.6;
+  font-size: 12px;
+}
+
+/* =========================
+   道具なし
+========================= */
+
+.equipment-empty-members {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* スマホで狙いやすいように大きめ */
+.equipment-empty-member {
+  min-height: 64px;
+  padding: 12px 14px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+
+  background: var(--card);
+
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    border-color 0.15s ease;
+}
+
+/* 名前 + 背番号 */
+.equipment-empty-member > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.equipment-empty-member strong {
+  font-size: 14px;
+}
+
+.equipment-empty-member small {
+  opacity: 0.55;
+  font-size: 12px;
+}
+
+.equipment-holder-select {
+  width: 100%;
+  height: 42px;
+  margin-top: 6px;
+  padding: 0 12px;
+
+  border: 1px solid var(--border);
+  border-radius: 8px;
+
+  background: var(--background);
+  color: inherit;
+
+  font: inherit;
+}
+/* 「ここへドロップ」 */
+.equipment-empty-member > span {
+  font-size: 12px;
+  opacity: 0.45;
+}
+
+/* 道具を上に持ってきたとき */
+.equipment-empty-member.drop-over {
+  transform: scale(1.02);
+  outline: 3px solid currentColor;
+}
+
+/* =========================
+   補助表示
+========================= */
+
+.equipment-drop-help {
+  margin: 10px;
+  font-size: 12px;
+  opacity: 0.6;
+}
+
+.equipment-member + .equipment-member {
+  margin-top: 0;
+}
+
+/* =========================
+   共通ローディング
+========================= */
+
+.app-loading {
+  min-height: 220px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  gap: 14px;
+
+  text-align: center;
+}
+
+.app-loading-spinner {
+  width: 34px;
+  height: 34px;
+
+  border: 3px solid rgba(0, 0, 0, 0.12);
+  border-top-color: currentColor;
+  border-radius: 50%;
+
+  animation: app-loading-spin 0.75s linear infinite;
+}
+
+.app-loading p {
+  margin: 0;
+
+  font-size: 13px;
+  font-weight: 600;
+
+  opacity: 0.6;
+}
+
+@keyframes app-loading-spin {
+  to {
+    transform: rotate(360deg);
   }
 }

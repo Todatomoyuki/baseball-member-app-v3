@@ -11,6 +11,7 @@ import { useTeamData } from "./hooks/useTeamData";
 import { useTeamUiState } from "./hooks/useTeamUiState";
 import { usePdfExport } from "./hooks/usePdfExport";
 import { useLineupTool } from "./hooks/useLineupTool";
+import { EquipmentView } from "./equipment/EquipmentView";
 
 import {
   pickOpponentUpdater,
@@ -128,7 +129,6 @@ export function TeamApp() {
   /* ---------------- 未ログイン ---------------- */
 
   if (team.auth !== "ready") {
-    if (ui.appView === "equipment") return <a />;
     return (
       <LoginScreen
         auth={team.auth}
@@ -151,71 +151,79 @@ export function TeamApp() {
         onSettingsClick={() => ui.setSettings(true)}
       />
 
-      <PageHeading
-        teamName={data.teamName}
-        pdfBusy={pdf.busy}
-        onCreatePdf={() => void pdf.create()}
-      />
-
-      <TabNav
-        tab={ui.tab}
-        onChange={ui.setTab}
-        playerCount={data.players.length}
-        saveState={team.saveState}
-      />
-
-      <ErrorBanner
-        message={team.error}
-        saveState={team.saveState}
-        onReload={() => {
-          if (
-            window.confirm(
-              "画面上の未保存の変更を破棄し、最新データに置き換えますか？",
-            )
-          )
-            void team.load().catch((e: Error) => team.setError(e.message));
-        }}
-        onRetry={() => {
-          team.setError("");
-          if (team.saveState === "error") team.setSaveState("dirty");
-        }}
-      />
-
-      {ui.tab === "order" ? (
-        <LineupWorkspace
-          data={data}
-          edit={edit}
-          bench={bench}
-          absent={absent}
-          infoOpen={ui.infoOpen}
-          onToggleInfo={() => ui.setInfoOpen(!ui.infoOpen)}
-          tournamentPickerOpen={ui.tournamentPicker}
-          onOpenTournamentPicker={() => ui.setTournamentPicker(true)}
-          teamPickerOpen={ui.teamPicker}
-          onOpenTeamPicker={() => ui.setTeamPicker(true)}
-          onPickPlayer={ui.setPick}
-          onPickPosition={ui.setPositionIndex}
-          onEditPlayer={ui.setEditor}
-          onAddPlayer={() => ui.setEditor("new")}
-        />
+      {ui.appView === "equipment" ? (
+        <EquipmentView players={data.players} />
       ) : (
-        <RosterPanel
-          players={data.players}
-          bench={bench}
-          absent={absent}
-          onAddPlayer={() => ui.setEditor("new")}
-          onEditPlayer={ui.setEditor}
-        />
+        <>
+          <PageHeading
+            teamName={data.teamName}
+            pdfBusy={pdf.busy}
+            onCreatePdf={() => void pdf.create()}
+          />
+
+          <TabNav
+            tab={ui.tab}
+            onChange={ui.setTab}
+            playerCount={data.players.length}
+            saveState={team.saveState}
+          />
+
+          <ErrorBanner
+            message={team.error}
+            saveState={team.saveState}
+            onReload={() => {
+              if (
+                window.confirm(
+                  "画面上の未保存の変更を破棄し、最新データに置き換えますか？",
+                )
+              )
+                void team.load().catch((e: Error) => team.setError(e.message));
+            }}
+            onRetry={() => {
+              team.setError("");
+              if (team.saveState === "error") team.setSaveState("dirty");
+            }}
+          />
+
+          {ui.tab === "order" ? (
+            <LineupWorkspace
+              data={data}
+              edit={edit}
+              bench={bench}
+              absent={absent}
+              infoOpen={ui.infoOpen}
+              onToggleInfo={() => ui.setInfoOpen(!ui.infoOpen)}
+              tournamentPickerOpen={ui.tournamentPicker}
+              onOpenTournamentPicker={() => ui.setTournamentPicker(true)}
+              teamPickerOpen={ui.teamPicker}
+              onOpenTeamPicker={() => ui.setTeamPicker(true)}
+              onPickPlayer={ui.setPick}
+              onPickPosition={ui.setPositionIndex}
+              onEditPlayer={ui.setEditor}
+              onAddPlayer={() => ui.setEditor("new")}
+            />
+          ) : (
+            <RosterPanel
+              players={data.players}
+              bench={bench}
+              absent={absent}
+              onAddPlayer={() => ui.setEditor("new")}
+              onEditPlayer={ui.setEditor}
+            />
+          )}
+
+          <footer>{data.teamName} · メンバー表</footer>
+
+          <MobileBottomBar
+            tab={ui.tab}
+            onToggleTab={() =>
+              ui.setTab(ui.tab === "order" ? "players" : "order")
+            }
+            pdfBusy={pdf.busy}
+            onCreatePdf={() => void pdf.create()}
+          />
+        </>
       )}
-
-      <footer>{data.teamName} · メンバー表</footer>
-
-      <MobileBottomBar
-        tab={ui.tab}
-        onToggleTab={() => ui.setTab(ui.tab === "order" ? "players" : "order")}
-        pdfBusy={pdf.busy}
-        onCreatePdf={() => void pdf.create()}
-      />
 
       {/* ------------------------- モーダル群 ------------------------- */}
 
@@ -309,7 +317,7 @@ export function TeamApp() {
         onClose={() => ui.setAppMenuOpen(false)}
         onOpenLineup={() => {
           ui.setAppMenuOpen(false);
-          ui.setAppView("lineup")
+          ui.setAppView("lineup");
         }}
         onOpenEquipment={() => {
           // ⚠ 元コードと同じく、ここは appView を変えるだけで画面は切り替わりません。
