@@ -1,5 +1,76 @@
-import { initialData, normalizeData, validateData, type TeamData } from '@/lib/model';
-import { authorized, db, json, readBody, sameOrigin } from '@/lib/server';
-export const dynamic='force-dynamic';
-export async function GET(req:Request){try{if(!await authorized(req))return json({error:'ログインしてください。'},401);let row=await db().prepare('SELECT data,revision FROM team_state WHERE id=1').first<{data:string;revision:number}>();if(!row){await db().prepare('INSERT OR IGNORE INTO team_state(id,data,revision) VALUES(1,?,0)').bind(JSON.stringify(initialData())).run();row=await db().prepare('SELECT data,revision FROM team_state WHERE id=1').first<{data:string;revision:number}>();}return json({data:normalizeData(JSON.parse(row!.data) as TeamData),revision:row!.revision});}catch{return json({error:'データを読み込めませんでした。再試行してください。'},503);}}
-export async function PUT(req:Request){if(!sameOrigin(req))return json({error:'リクエストを確認できません。'},403);try{if(!await authorized(req))return json({error:'再ログインしてください。'},401);const input=await readBody(req);let data;try{data=validateData(input.data);}catch{return json({error:'選手・守備位置・日付などの入力を確認してください。'},400);}if(!Number.isSafeInteger(input.revision)||input.revision<0)return json({error:'保存情報が不正です。'},400);const result=await db().prepare('UPDATE team_state SET data=?, revision=revision+1 WHERE id=1 AND revision=? RETURNING revision').bind(JSON.stringify(data),input.revision).first<{revision:number}>();if(!result)return json({error:'別の端末で更新されています。編集内容を確認して、最新データを読み込んでください。'},409);return json({revision:result.revision});}catch{return json({error:'保存できませんでした。入力内容は画面に残っています。'},503);}}
+import {
+    initialData,
+    normalizeData,
+    validateData,
+    type TeamData,
+} from "@/lib/model";
+import { authorized, db, json, readBody, sameOrigin } from "@/lib/server";
+export const dynamic = "force-dynamic";
+export async function GET(req: Request) {
+    try {
+        if (!(await authorized(req)))
+            return json({ error: "ログインしてください。" }, 401);
+        let row = await db()
+            .prepare("SELECT data,revision FROM team_state WHERE id=1")
+            .first<{ data: string; revision: number }>();
+        if (!row) {
+            await db()
+                .prepare(
+                    "INSERT OR IGNORE INTO team_state(id,data,revision) VALUES(1,?,0)",
+                )
+                .bind(JSON.stringify(initialData()))
+                .run();
+            row = await db()
+                .prepare("SELECT data,revision FROM team_state WHERE id=1")
+                .first<{ data: string; revision: number }>();
+        }
+        return json({
+            data: normalizeData(JSON.parse(row!.data) as TeamData),
+            revision: row!.revision,
+        });
+    } catch {
+        return json(
+            { error: "データを読み込めませんでした。再試行してください。" },
+            503,
+        );
+    }
+}
+export async function PUT(req: Request) {
+    if (!sameOrigin(req))
+        return json({ error: "リクエストを確認できません。" }, 403);
+    try {
+        if (!(await authorized(req)))
+            return json({ error: "再ログインしてください。" }, 401);
+        const input = await readBody(req);
+        let data;
+        try {
+            data = validateData(input.data);
+        } catch {
+            return json(
+                { error: "選手・守備位置・日付などの入力を確認してください。" },
+                400,
+            );
+        }
+        if (!Number.isSafeInteger(input.revision) || input.revision < 0)
+            return json({ error: "保存情報が不正です。" }, 400);
+        const result = await db()
+            .prepare(
+                "UPDATE team_state SET data=?, revision=revision+1 WHERE id=1 AND revision=? RETURNING revision",
+            )
+            .bind(JSON.stringify(data), input.revision)
+            .first<{ revision: number }>();
+        if (!result)
+            return json(
+                {
+                    error: "別の端末で更新されています。編集内容を確認して、最新データを読み込んでください。",
+                },
+                409,
+            );
+        return json({ revision: result.revision });
+    } catch {
+        return json(
+            { error: "保存できませんでした。入力内容は画面に残っています。" },
+            503,
+        );
+    }
+}
