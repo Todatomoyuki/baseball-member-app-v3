@@ -47,7 +47,13 @@ export function AppMenuModal({
 
         <button className="app-launcher-item" aria-disabled>
           <Users size={26} />
-          <strong>後藤君のお話</strong>
+          <strong>ホームページ</strong>
+          <small></small>
+        </button>
+
+        <button className="app-launcher-item" aria-disabled>
+          <Users size={26} />
+          <strong>後藤君のありがたいお話</strong>
           <small></small>
         </button>
       </div>
