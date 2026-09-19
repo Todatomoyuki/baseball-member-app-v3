@@ -40,6 +40,55 @@
 .match-fields input[type="date"]{display:block;width:100%;max-width:100%;min-width:0;min-inline-size:0;box-sizing:border-box;-webkit-appearance:none;appearance:none;overflow:hidden;font-size:16px}
 .match-fields input[type="date"]::-webkit-date-and-time-value{text-align:left;min-width:0}
 .match-fields input[type="date"]::-webkit-datetime-edit{min-width:0;padding:0}
+.brand-button {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.app-launcher-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.app-launcher-item {
+  min-height: 120px;
+  padding: 16px 12px;
+  border: 1px solid #dbe5ef;
+  border-radius: 16px;
+  background: #fff;
+
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+
+  color: #16324f;
+  text-decoration: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.app-launcher-item:hover {
+  background: #f5f9fd;
+}
+
+.app-launcher-item.active {
+  border-color: #1580ca;
+  background: #eef7fd;
+}
+
+.app-launcher-item strong {
+  font-size: 0.95rem;
+}
+
+.app-launcher-item small {
+  color: #718096;
+  font-size: 0.72rem;
+}
 @media(max-width:760px){
  .team-dialog{top:var(--dialog-top,0px);left:0;transform:none;width:100%;height:var(--dialog-height,100dvh);max-height:var(--dialog-height,100dvh);border:0;border-radius:0}
  .team-dialog-header{padding:calc(env(safe-area-inset-top) + 14px) 68px 14px 18px}
