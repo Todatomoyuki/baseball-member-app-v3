@@ -1553,7 +1553,7 @@ footer {
 /* アコーディオンの見出し */
 .equipment-member-header {
   width: 100%;
-  min-height: 48px;
+  min-height: 40px;
   padding: 0px 12px;
 
   display: flex;
@@ -1664,8 +1664,9 @@ footer {
 
 /* スマホで狙いやすいように大きめ */
 .equipment-empty-member {
-  min-height: 64px;
-  padding: 12px 14px;
+  min-height: 48px;
+  padding: 0px 14px;
+  margin: 0px 10px;
 
   display: flex;
   align-items: center;

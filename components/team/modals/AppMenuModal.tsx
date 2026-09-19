@@ -39,16 +39,16 @@ export function AppMenuModal({
           <small>道具・個数・保管状況</small>
         </button>
 
-        <a className="app-launcher-item" href="/stats">
+        <button className="app-launcher-item" aria-disabled>
           <BarChart3 size={26} />
           <strong>成績入力</strong>
           <small>試合・打撃・投手成績</small>
-        </a>
+        </button>
 
-        <button className="app-launcher-item" onClick={onOpenRoster}>
+        <button className="app-launcher-item" aria-disabled>
           <Users size={26} />
-          <strong>選手管理</strong>
-          <small>選手登録・編集</small>
+          <strong>後藤君のお話</strong>
+          <small></small>
         </button>
       </div>
     </Modal>

@@ -320,10 +320,6 @@ export function TeamApp() {
           ui.setAppView("lineup");
         }}
         onOpenEquipment={() => {
-          // ⚠ 元コードと同じく、ここは appView を変えるだけで画面は切り替わりません。
-          //    道具管理画面を有効にする場合は、上の `if (team.auth !== "ready")` の直後に
-          //      if (ui.appView === "equipment") return <EquipmentView ... />;
-          //    を足したうえで、戻る導線（onOpenLineup で setAppView("lineup")）も忘れずに。
           ui.setAppView("equipment");
           ui.setAppMenuOpen(false);
         }}
