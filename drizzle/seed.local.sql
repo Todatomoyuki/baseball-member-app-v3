@@ -132,3 +132,69 @@ VALUES (
   }',
   1
 );
+
+DELETE FROM equipment_state;
+
+INSERT INTO equipment_state (id, data, revision)
+VALUES (
+  1,
+  '{
+    "items": [
+      {
+        "id": "equipment-001",
+        "name": "防具赤",
+        "holderId": "00000000-0000-4000-8000-000000000014",
+        "note": ""
+      },
+      {
+        "id": "equipment-002",
+        "name": "黒ワニ",
+        "holderId": "00000000-0000-4000-8000-000000000011",
+        "note": ""
+      },
+      {
+        "id": "equipment-003",
+        "name": "レガシー",
+        "holderId": "00000000-0000-4000-8000-000000000010",
+        "note": ""
+      },
+      {
+        "id": "equipment-004",
+        "name": "icon",
+        "holderId": "00000000-0000-4000-8000-000000000010",
+        "note": ""
+      },
+      {
+        "id": "equipment-005",
+        "name": "練習球",
+        "holderId": "00000000-0000-4000-8000-000000000008",
+        "note": ""
+      },
+      {
+        "id": "equipment-006",
+        "name": "試合球",
+        "holderId": "00000000-0000-4000-8000-000000000010",
+        "note": ""
+      },
+      {
+        "id": "equipment-007",
+        "name": "メンバー表①",
+        "holderId": "00000000-0000-4000-8000-000000000008",
+        "note": "公式戦の日"
+      },
+      {
+        "id": "equipment-008",
+        "name": "メンバー表②",
+        "holderId": "00000000-0000-4000-8000-000000000010",
+        "note": "公式戦の日"
+      },
+      {
+        "id": "equipment-009",
+        "name": "助っ人ユニ",
+        "holderId": "00000000-0000-4000-8000-000000000005",
+        "note": "公式戦の日"
+      }
+    ]
+  }',
+  1
+);
