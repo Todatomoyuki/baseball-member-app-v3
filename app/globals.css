@@ -182,7 +182,7 @@ h1 {
 h2 {
   font-size: 18px;
   font-weight: 750;
-  margin: 0 0 22px;
+  margin: 0 0 12px;
 }
 label {
   display: flex;
@@ -441,7 +441,7 @@ footer {
   align-items: center;
   gap: 25px;
   border-bottom: 1px solid var(--border);
-  margin-bottom: 26px;
+  margin-bottom: 12px;
 }
 .tabs > button {
   background: transparent;
@@ -1484,6 +1484,517 @@ footer {
 .app-launcher-item small {
   color: #718096;
   font-size: 0.72rem;
+}
+.stats-page {
+  padding: 32px 0 48px;
+}
+.stats-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+.stats-heading p:not(.eyebrow) {
+  margin: 9px 0 0;
+  color: #718396;
+  font-size: 14px;
+}
+.stats-date-field {
+  min-width: 190px;
+}
+.stats-date-field label {
+  margin-bottom: 8px;
+}
+.stats-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 34px;
+  margin-bottom: 10px;
+}
+.stats-save-status {
+  color: #4d657b;
+  font-size: 13px;
+  font-weight: 700;
+}
+.stats-save-status.saving,
+.stats-save-status.dirty {
+  color: #0876c9;
+}
+.stats-save-status.error,
+.stats-save-status.conflict,
+.stats-error-text {
+  color: #bd3c36;
+}
+.stats-table-wrap {
+  overflow: hidden;
+}
+.stats-table-scroll {
+  overflow-x: auto;
+}
+.stats-table {
+  width: 100%;
+  min-width: 1120px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.stats-table th,
+.stats-table td {
+  padding: 10px 6px;
+  border-bottom: 1px solid #e3eaf1;
+  text-align: center;
+  white-space: nowrap;
+}
+.stats-table thead th {
+  background: #f5f8fb;
+  color: #617488;
+  font-size: 12px;
+}
+.stats-table tbody tr:last-child th,
+.stats-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+.stats-player-cell {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  width: 150px;
+  min-width: 150px;
+  background: #fff;
+  text-align: left !important;
+}
+.stats-table thead .stats-player-cell {
+  background: #f5f8fb;
+}
+.stats-player-cell small {
+  display: block;
+  margin-top: 3px;
+  color: #8393a2;
+  font-weight: 500;
+}
+.stats-table td input {
+  width: 58px;
+  height: 38px;
+  padding: 0 6px;
+  text-align: center;
+}
+.stats-empty {
+  padding: 38px !important;
+  color: #718396;
+}
+.stats-entry-card {
+  max-width: 760px;
+  width: 100%;
+  min-width: 0;
+  overflow: visible;
+  padding: 28px;
+}
+.stats-player-field {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+.stats-player-field label {
+  margin-bottom: 8px;
+}
+.stats-player-select {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.stats-game-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 112px;
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 20px;
+}
+.stats-game-fields label {
+  margin-bottom: 8px;
+}
+.stats-game-number-field {
+  min-width: 0;
+}
+.stats-game-fields + label {
+  margin-top: 28px;
+}
+.stats-game-number-control {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 46px;
+  color: #617488;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.stats-entry-card > label {
+  margin-bottom: 8px;
+}
+.stats-game-number-label {
+  display: inline-flex;
+  margin: 18px 10px 8px 0;
+  font-size: 12px;
+}
+.stats-game-number-input {
+  display: inline-block;
+  width: 68px;
+  height: 34px;
+  padding: 0 8px;
+  font-size: 14px;
+}
+.stats-section-heading {
+  margin: 28px 0 14px;
+  font-size: 16px;
+}
+.plate-entry-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(80px, 1fr));
+  gap: 10px;
+}
+.plate-entry {
+  position: relative;
+}
+.plate-square {
+  width: 100%;
+  min-height: 78px;
+  padding: 10px 6px;
+  border: 1px solid #cbd9e5;
+  border-radius: 8px;
+  background: #f8fbfd;
+  color: #16324f;
+}
+.plate-square:hover,
+.plate-square.filled {
+  border-color: #0876c9;
+  background: #eef7fd;
+}
+.plate-square small,
+.plate-square strong {
+  display: block;
+}
+.plate-square small {
+  color: #718396;
+  font-size: 11px;
+}
+.plate-square strong {
+  margin-top: 8px;
+  font-size: 13px;
+}
+.plate-square.hit-result strong {
+  color: #c62828;
+}
+.scoring-position-field {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 8px 0 0;
+  font-size: 11px;
+}
+.scoring-position-field span {
+  color: #718396;
+  white-space: nowrap;
+}
+.scoring-position-field select {
+  width: 100%;
+  height: 32px;
+  padding: 0 4px;
+  font-size: 12px;
+  text-align: center;
+}
+.scoring-position-field input[type="checkbox"] {
+  display: block;
+  width: 20px;
+  min-width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: #0876c9;
+}
+.scoring-position-field small {
+  display: none;
+}
+.plate-add-button {
+  min-height: 78px;
+  padding: 8px 5px;
+  border: 1px dashed #8eb6d1;
+  border-radius: 8px;
+  background: #fff;
+  color: #0876c9;
+  font-size: 26px;
+  font-weight: 700;
+}
+.plate-add-button:hover {
+  background: #eef7fd;
+  border-color: #0876c9;
+}
+.plate-add-button small {
+  display: block;
+  margin-top: 5px;
+  color: #617488;
+  font-size: 11px;
+  font-weight: 500;
+}
+.plate-result-menu {
+  position: absolute;
+  z-index: 3;
+  top: calc(100% + 6px);
+  left: 50%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(96px, 1fr));
+  gap: 4px;
+  width: 216px;
+  padding: 8px;
+  border: 1px solid #cbd9e5;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 8px 22px #16324f20;
+  transform: translateX(-50%);
+}
+.plate-entry:first-child .plate-result-menu {
+  left: 0;
+  transform: none;
+}
+.plate-result-menu button {
+  min-height: 34px;
+  border-radius: 5px;
+  background: #f1f6fa;
+  color: #16324f;
+  font-size: 12px;
+}
+.plate-result-menu button:hover {
+  background: #dceefb;
+}
+.stats-number-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 14px 12px;
+}
+.stats-number-grid label {
+  margin: 0;
+  gap: 6px;
+  color: #617488;
+  font-size: 12px;
+}
+.stats-number-grid input {
+  height: 40px;
+}
+.stats-entry-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px 12px;
+  margin-top: 24px;
+}
+.stats-entry-grid label {
+  margin: 0;
+  gap: 6px;
+  color: #617488;
+  font-size: 12px;
+}
+.stats-entry-grid input {
+  height: 40px;
+}
+.stats-entry-placeholder {
+  margin: 28px 0 8px;
+  color: #718396;
+  font-size: 14px;
+}
+.stats-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 28px;
+}
+.stats-confirm-list {
+  overflow: hidden;
+}
+.stats-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 24px;
+}
+.stats-pagination span {
+  color: #617488;
+  font-size: 13px;
+  font-weight: 700;
+}
+.stats-game-group + .stats-game-group h2 {
+  margin: 12px 0;
+}
+.stats-confirm-player {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr) 70px;
+  gap: 18px;
+  align-items: center;
+  padding: 18px 20px;
+  border-bottom: 1px solid #e3eaf1;
+}
+.stats-confirm-summary {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.stats-summary-row {
+  display: grid;
+  gap: 8px;
+}
+.stats-summary-row.first {
+  grid-template-columns: repeat(11, minmax(52px, 1fr));
+}
+.stats-summary-row.second {
+  grid-template-columns: repeat(11, minmax(52px, 1fr));
+}
+.stats-summary-row span {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  text-align: center;
+}
+.stats-summary-row small {
+  color: #718396;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.stats-summary-row strong {
+  font-size: 14px;
+}
+.stats-summary-empty {
+  visibility: hidden;
+}
+.stats-confirm-plate-results,
+.stats-confirm-totals {
+  display: grid;
+  gap: 8px;
+}
+.stats-confirm-plate-results {
+  grid-template-columns: repeat(7, minmax(60px, 1fr));
+}
+.stats-confirm-totals {
+  grid-template-columns: repeat(4, minmax(42px, 1fr));
+}
+.stats-confirm-plate-results span,
+.stats-confirm-totals span {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  text-align: center;
+}
+.stats-confirm-plate-results small,
+.stats-confirm-totals small {
+  color: #718396;
+  font-size: 11px;
+}
+.stats-confirm-plate-results strong,
+.stats-confirm-totals strong {
+  font-size: 13px;
+}
+.stats-confirm-plate-results em {
+  color: #0876c9;
+  font-size: 10px;
+  font-style: normal;
+}
+.stats-delete-button {
+  justify-self: end;
+  min-width: 54px;
+  min-height: 32px;
+  padding: 5px 8px;
+  border: 1px solid #e2b4b0;
+  border-radius: 6px;
+  background: #fff7f6;
+  color: #bd3c36;
+  font-size: 12px;
+}
+.stats-delete-button:hover {
+  background: #fde9e7;
+}
+.stats-confirm-player:last-child {
+  border-bottom: 0;
+}
+.stats-confirm-player-name strong,
+.stats-confirm-player-name small {
+  display: block;
+}
+.stats-confirm-player-name small {
+  margin-top: 4px;
+  color: #8393a2;
+}
+.stats-confirm-values {
+  display: grid;
+  grid-template-columns: repeat(16, minmax(42px, 1fr));
+  gap: 8px;
+  overflow-x: auto;
+}
+.stats-confirm-values span {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  text-align: center;
+}
+.stats-confirm-values small {
+  color: #718396;
+  font-size: 11px;
+}
+.stats-confirm-values strong {
+  font-size: 16px;
+}
+.stats-error {
+  margin-top: 40px;
+  padding: 24px;
+}
+@media (max-width: 700px) {
+  .stats-page {
+    padding-top: 25px;
+  }
+  .stats-heading {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .stats-date-field {
+    min-width: 0;
+  }
+  .stats-entry-card {
+    padding: 20px 18px;
+  }
+  .stats-player-select {
+    font-size: 14px;
+  }
+  .stats-entry-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .plate-entry-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .stats-number-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .stats-confirm-player {
+    display: block;
+  }
+  .stats-delete-button {
+    margin-top: 12px;
+  }
+  .stats-confirm-plate-results,
+  .stats-confirm-totals {
+    margin-top: 16px;
+    padding-bottom: 4px;
+  }
+  .stats-confirm-plate-results { min-width: 520px; }
+  .stats-confirm-summary {
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .stats-summary-row.first { min-width: 650px; }
+  .stats-summary-row.second { min-width: 650px; }
 }
 @media (max-width: 760px) {
   .team-dialog {

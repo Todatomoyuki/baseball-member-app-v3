@@ -12,6 +12,7 @@ import { useTeamUiState } from "./hooks/useTeamUiState";
 import { usePdfExport } from "./hooks/usePdfExport";
 import { useLineupTool } from "./hooks/useLineupTool";
 import { EquipmentView } from "./equipment/EquipmentView";
+import { StatsView } from "./stats/StatsView";
 
 import {
   pickOpponentUpdater,
@@ -153,6 +154,8 @@ export function TeamApp() {
 
       {ui.appView === "equipment" ? (
         <EquipmentView players={data.players} />
+      ) : ui.appView === "stats" ? (
+        <StatsView players={data.players} />
       ) : (
         <>
           <PageHeading
@@ -326,6 +329,10 @@ export function TeamApp() {
         onOpenRoster={() => {
           ui.setAppMenuOpen(false);
           ui.setTab("players");
+        }}
+        onOpenStats={() => {
+          ui.setAppView("stats");
+          ui.setAppMenuOpen(false);
         }}
       />
     </main>
