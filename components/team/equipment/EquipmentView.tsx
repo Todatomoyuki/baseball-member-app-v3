@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import {
   DndContext,
@@ -18,16 +18,15 @@ import {
 import { ChevronDown, GripVertical } from "lucide-react";
 
 import type { Player } from "@/lib/model";
+import type { SaveState } from "../types";
 
 import { LoadingState } from "../common/LoadingState";
 import { useEquipmentData } from "../hooks/useEquipmentData";
 
-import { EquipmentTabNav, type EquipmentTab } from "./EquipmentTabNav";
-import { EquipmentList } from "./EquipmentList";
-import { EquipmentEditorModal } from "../modals/EquipmentEditorModal";
-
 type Props = {
   players: Player[];
+  appNavigation?: ReactNode;
+  onSaveStateChange?: (state: SaveState) => void;
 };
 
 /* =========================================================
@@ -175,16 +174,12 @@ function EmptyEquipmentMember({ player }: { player: Player }) {
    メイン
 ========================================================= */
 
-export function EquipmentView({ players }: Props) {
+export function EquipmentView({ players, appNavigation, onSaveStateChange }: Props) {
   const equipment = useEquipmentData();
 
-  const [tab, setTab] = useState<EquipmentTab>("assignment");
-
-  /*
-   * 道具一覧編集用
-   * EquipmentListを作る次の工程で使用
-   */
-  const [editorId, setEditorId] = useState<string | "new" | null>(null);
+  useEffect(() => {
+    onSaveStateChange?.(equipment.saveState);
+  }, [equipment.saveState, onSaveStateChange]);
 
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -273,13 +268,6 @@ export function EquipmentView({ players }: Props) {
     (entry) => entry.items.length === 0,
   );
 
-  const editorTarget =
-    editorId === "new"
-      ? "new"
-      : editorId
-        ? (equipment.data.items.find((item) => item.id === editorId) ?? null)
-        : null;
-
   /* =========================================================
      Render
   ========================================================= */
@@ -300,23 +288,9 @@ export function EquipmentView({ players }: Props) {
         </div>
       </div>
 
-      {/* =========================
-          タブ
-      ========================= */}
+      {appNavigation}
 
-      <EquipmentTabNav
-        tab={tab}
-        onChange={setTab}
-        itemCount={equipment.data.items.length}
-        saveState={equipment.saveState}
-      />
-
-      {/* =====================================================
-          担当タブ
-      ===================================================== */}
-
-      {tab === "assignment" && (
-        <section className="panel">
+      <section className="panel">
           <div className="section-title">
             <span>道具担当</span>
 
@@ -363,54 +337,7 @@ export function EquipmentView({ players }: Props) {
               ))}
             </div>
           </DndContext>
-        </section>
-      )}
-
-      {/* =====================================================
-          道具一覧タブ
-      ===================================================== */}
-
-      {tab === "items" && (
-        <EquipmentList
-          items={equipment.data.items}
-          players={players}
-          onAdd={() => setEditorId("new")}
-          onEdit={(item) => setEditorId(item.id)}
-        />
-      )}
-
-      {/* editorIdは次にEditorModalで使う */}
-      <EquipmentEditorModal
-        target={editorTarget}
-        players={players}
-        onClose={() => setEditorId(null)}
-        onSave={(item) => {
-          equipment.edit((current) => {
-            const exists = current.items.some(
-              (currentItem) => currentItem.id === item.id,
-            );
-
-            return {
-              ...current,
-
-              items: exists
-                ? current.items.map((currentItem) =>
-                    currentItem.id === item.id ? item : currentItem,
-                  )
-                : [...current.items, item],
-            };
-          });
-        }}
-        onDelete={(item) => {
-          equipment.edit((current) => ({
-            ...current,
-
-            items: current.items.filter(
-              (currentItem) => currentItem.id !== item.id,
-            ),
-          }));
-        }}
-      />
+      </section>
     </>
   );
 }

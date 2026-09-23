@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   absentPlayers,
   benchPlayers,
@@ -32,7 +32,7 @@ import { TabNav } from "./TabNav";
 import { ErrorBanner } from "./ErrorBanner";
 import { MobileBottomBar } from "./MobileBottomBar";
 import { LineupWorkspace } from "./lineup/LineupWorkspace";
-import { RosterPanel } from "./roster/RosterPanel";
+import { RegistrationPanel } from "./roster/RegistrationPanel";
 
 import { PlayerEditorModal } from "./modals/PlayerEditorModal";
 import { PlayerPickerModal } from "./modals/PlayerPickerModal";
@@ -43,6 +43,7 @@ import { ReauthModal } from "./modals/ReauthModal";
 import { PdfWarningModal } from "./modals/PdfWarningModal";
 import { PdfReadyModal } from "./modals/PdfReadyModal";
 import { AppMenuModal } from "./modals/AppMenuModal";
+import type { SaveState } from "./types";
 
 /**
  * メンバー表アプリのルートコンポーネント。
@@ -60,6 +61,8 @@ export function TeamApp() {
   const team = useTeamData();
   const ui = useTeamUiState();
   const pdf = usePdfExport(team.data, team.setError);
+  const [equipmentSaveState, setEquipmentSaveState] = useState<SaveState>("saved");
+  const [statsSaveState, setStatsSaveState] = useState<SaveState>("saved");
 
   useLineupTool(team.data, team.auth);
 
@@ -143,6 +146,23 @@ export function TeamApp() {
     );
   }
 
+  const appNavigation = (
+    <TabNav
+      tab={ui.tab}
+      appView={ui.appView}
+      onChange={ui.setTab}
+      onViewChange={ui.setAppView}
+      playerCount={data.players.length}
+      saveState={
+        ui.appView === "equipment"
+          ? equipmentSaveState
+          : ui.appView === "stats"
+            ? statsSaveState
+            : team.saveState
+      }
+    />
+  );
+
   /* ---------------- 本画面 ---------------- */
 
   return (
@@ -153,9 +173,17 @@ export function TeamApp() {
       />
 
       {ui.appView === "equipment" ? (
-        <EquipmentView players={data.players} />
+        <EquipmentView
+          players={data.players}
+          appNavigation={appNavigation}
+          onSaveStateChange={setEquipmentSaveState}
+        />
       ) : ui.appView === "stats" ? (
-        <StatsView players={data.players} />
+        <StatsView
+          players={data.players}
+          appNavigation={appNavigation}
+          onSaveStateChange={setStatsSaveState}
+        />
       ) : (
         <>
           <PageHeading
@@ -164,12 +192,7 @@ export function TeamApp() {
             onCreatePdf={() => void pdf.create()}
           />
 
-          <TabNav
-            tab={ui.tab}
-            onChange={ui.setTab}
-            playerCount={data.players.length}
-            saveState={team.saveState}
-          />
+          {appNavigation}
 
           <ErrorBanner
             message={team.error}
@@ -206,7 +229,7 @@ export function TeamApp() {
               onAddPlayer={() => ui.setEditor("new")}
             />
           ) : (
-            <RosterPanel
+            <RegistrationPanel
               players={data.players}
               bench={bench}
               absent={absent}
@@ -321,18 +344,6 @@ export function TeamApp() {
         onOpenLineup={() => {
           ui.setAppMenuOpen(false);
           ui.setAppView("lineup");
-        }}
-        onOpenEquipment={() => {
-          ui.setAppView("equipment");
-          ui.setAppMenuOpen(false);
-        }}
-        onOpenRoster={() => {
-          ui.setAppMenuOpen(false);
-          ui.setTab("players");
-        }}
-        onOpenStats={() => {
-          ui.setAppView("stats");
-          ui.setAppMenuOpen(false);
         }}
       />
     </main>

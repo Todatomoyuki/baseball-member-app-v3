@@ -12,7 +12,7 @@ import type { AppView, PlayerEditorTarget, TeamTab } from "../types";
 export function useTeamUiState() {
   /** アプリランチャーで選んだ画面 */
   const [appView, setAppView] = useState<AppView>("lineup");
-  /** オーダー / 登録選手 タブ */
+  /** オーダー / 登録情報 タブ */
   const [tab, setTab] = useState<TeamTab>("order");
 
   /** 選手編集モーダル（Player = 編集 / "new" = 新規 / null = 閉） */

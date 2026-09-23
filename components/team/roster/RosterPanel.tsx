@@ -6,7 +6,7 @@ import type { Player } from "@/lib/model";
 import { MAX_PLAYERS } from "../lineup/BenchSection";
 
 /**
- * 「登録選手」タブ。名簿の一覧・検索・編集への導線だけを持ちます。
+ * 「登録情報」タブ内の選手一覧。名簿の検索・編集への導線を持ちます。
  * 検索文字列はこの画面の中だけで使うのでローカル state です。
  */
 export function RosterPanel({

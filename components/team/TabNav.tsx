@@ -1,42 +1,86 @@
 "use client";
-import { Check, GripVertical, Users } from "lucide-react";
-import type { SaveState, TeamTab } from "./types";
+import { useLayoutEffect, useRef } from "react";
+import { BarChart3, BriefcaseBusiness, GripVertical, Users } from "lucide-react";
+import type { AppView, SaveState, TeamTab } from "./types";
 import { SaveStateLabel } from "./common/SaveStateLabel";
+
+let savedScrollLeft = 0;
 
 /** タブ切り替え + 右端の保存ステータス表示 */
 export function TabNav({
   tab,
+  appView,
   onChange,
+  onViewChange,
   playerCount,
   saveState,
 }: {
   tab: TeamTab;
+  appView: AppView;
   onChange: (tab: TeamTab) => void;
+  onViewChange: (view: AppView) => void;
   playerCount: number;
   saveState: SaveState;
 }) {
   const bad = saveState === "error" || saveState === "conflict";
+  const tabsRef = useRef<HTMLElement>(null);
+
+  useLayoutEffect(() => {
+    if (tabsRef.current) tabsRef.current.scrollLeft = savedScrollLeft;
+  }, []);
 
   return (
-    <nav className="tabs" aria-label="画面切替">
-      <button
-        className={tab === "order" ? "active" : ""}
-        onClick={() => onChange("order")}
+    <div className="app-tabs-shell">
+      <nav
+        ref={tabsRef}
+        className="tabs app-tabs"
+        aria-label="画面切替"
+        onScroll={(event) => {
+          savedScrollLeft = event.currentTarget.scrollLeft;
+        }}
       >
-        <GripVertical size={17} />
-        オーダー
-      </button>
-      <button
-        className={tab === "players" ? "active" : ""}
-        onClick={() => onChange("players")}
+        <button
+          className={appView === "lineup" && tab === "order" ? "active" : ""}
+          onClick={() => {
+            onViewChange("lineup");
+            onChange("order");
+          }}
+        >
+          <GripVertical size={16} />
+          オーダー
+        </button>
+        <button
+          className={appView === "lineup" && tab === "players" ? "active" : ""}
+          onClick={() => {
+            onViewChange("lineup");
+            onChange("players");
+          }}
+        >
+          <Users size={16} />
+          登録
+          <span className="count-badge">{playerCount}</span>
+        </button>
+        <button
+          className={appView === "equipment" ? "active" : ""}
+          onClick={() => onViewChange("equipment")}
+        >
+          <BriefcaseBusiness size={16} />
+          道具管理
+        </button>
+        <button
+          className={appView === "stats" ? "active" : ""}
+          onClick={() => onViewChange("stats")}
+        >
+          <BarChart3 size={16} />
+          成績
+        </button>
+      </nav>
+      <span
+        className={`save-status app-tabs-save-status ${bad ? "bad" : ""}`}
+        role="status"
       >
-        <Users size={17} />
-        登録選手
-        <span className="count-badge">{playerCount}</span>
-      </button>
-      <span className={`save-status ${bad ? "bad" : ""}`} role="status">
         <SaveStateLabel state={saveState} />
       </span>
-    </nav>
+    </div>
   );
 }

@@ -18,7 +18,7 @@ export function MobileBottomBar({
     <div className="mobile-bottom">
       <button className="mobile-nav" onClick={onToggleTab}>
         <Users size={19} />
-        {tab === "order" ? "選手登録" : "オーダー"}
+        {tab === "order" ? "登録情報" : "オーダー"}
       </button>
       <button className="primary" onClick={onCreatePdf} disabled={pdfBusy}>
         <FileDown size={18} />

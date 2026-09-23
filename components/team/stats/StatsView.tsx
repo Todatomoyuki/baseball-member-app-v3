@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { Player } from "@/lib/model";
 import {
   emptyPlayerStats,
@@ -13,6 +13,7 @@ import {
   type StatsData,
 } from "@/lib/stats";
 import { useStatsData } from "../hooks/useStatsData";
+import type { SaveState } from "../types";
 import { LoadingState } from "../common/LoadingState";
 
 const NUMBER_FIELDS = [
@@ -98,7 +99,15 @@ function StatsValues({ player, values, onEdit, onDelete }: { player: Player; val
   );
 }
 
-export function StatsView({ players }: { players: Player[] }) {
+export function StatsView({
+  players,
+  appNavigation,
+  onSaveStateChange,
+}: {
+  players: Player[];
+  appNavigation?: ReactNode;
+  onSaveStateChange?: (state: SaveState) => void;
+}) {
   const stats = useStatsData();
   const [selectedPlayerId, setSelectedPlayerId] = useState("");
   const [selectedDate, setSelectedDate] = useState(todayLocalDate);
@@ -107,6 +116,10 @@ export function StatsView({ players }: { players: Player[] }) {
   const [openPlate, setOpenPlate] = useState<number | null>(null);
   const [confirmationPage, setConfirmationPage] = useState(1);
   const [entryReset, setEntryReset] = useState(false);
+
+  useEffect(() => {
+    onSaveStateChange?.(stats.saveState);
+  }, [stats.saveState, onSaveStateChange]);
 
   useEffect(() => {
     const hitResults = new Set(["安打", "二塁打", "三塁打", "本塁打"]);
@@ -213,7 +226,8 @@ export function StatsView({ players }: { players: Player[] }) {
   return (
     <section className="stats-page">
       <header className="stats-heading"><div><p className="eyebrow">GAME STATS</p><h1>{statsTab === "confirmation" ? "成績登録確認" : "成績登録"}</h1><p>{statsTab === "confirmation" ? "試合ごとの成績を確認できます。" : "試合日・試合番号・選手を選択して成績を入力してください。"}</p></div></header>
-      <nav className="tabs stats-tabs" aria-label="成績画面切替"><button className={statsTab === "entry" ? "active" : ""} type="button" onClick={() => setStatsTab("entry")}>成績入力</button><button className={statsTab === "confirmation" ? "active" : ""} type="button" onClick={() => setStatsTab("confirmation")}>成績登録確認</button><span className={`save-status ${stats.saveState === "error" || stats.saveState === "conflict" ? "bad" : ""}`} role="status">{SAVE_LABELS[stats.saveState]}</span></nav>
+      {appNavigation}
+      <nav className="tabs stats-tabs" aria-label="成績画面切替"><button className={statsTab === "entry" ? "active" : ""} type="button" onClick={() => setStatsTab("entry")}>成績入力</button><button className={statsTab === "confirmation" ? "active" : ""} type="button" onClick={() => setStatsTab("confirmation")}>成績登録確認</button></nav>
       {statsTab === "confirmation" ? (
         <><div className="stats-confirm-list">{registeredGames.length === 0 ? <div className="panel"><p className="stats-empty">まだ成績が登録されていません。</p></div> : visibleRegisteredGames.map(({ key, game }) => <section className="stats-game-group" key={key}><h2>{game.number === 1 ? game.date : `${game.date}・${game.number}試合目`}</h2><div className="panel">{players.filter((player) => stats.data.games[key]?.[player.id]).sort(sortByNumber).map((player) => <StatsValues key={player.id} player={player} values={stats.data.games[key][player.id]} onEdit={() => editRegistration(game, player.id)} onDelete={() => deleteRegistration(key, player.id)} />)}</div></section>)}</div>{confirmationPageCount > 1 && <nav className="stats-pagination" aria-label="成績登録確認ページ"><button type="button" className="secondary" disabled={currentConfirmationPage === 1} onClick={() => changeConfirmationPage(currentConfirmationPage - 1)}>前へ</button><span>{currentConfirmationPage} / {confirmationPageCount}</span><button type="button" className="secondary" disabled={currentConfirmationPage === confirmationPageCount} onClick={() => changeConfirmationPage(currentConfirmationPage + 1)}>次へ</button></nav>}<div className="stats-actions"><button type="button" className="secondary" onClick={() => setStatsTab("entry")}>成績を追加登録</button></div></>
       ) : (
