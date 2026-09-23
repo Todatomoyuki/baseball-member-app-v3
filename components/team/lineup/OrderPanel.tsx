@@ -1,6 +1,16 @@
 "use client";
+import { useState } from "react";
 import { DndContext, closestCenter } from "@dnd-kit/core";
-import { GripVertical } from "lucide-react";
+import { AlertTriangle, GripVertical } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { changeMode, type Player, type TeamData } from "@/lib/model";
 import { useLineupSensors } from "../hooks/useLineupSensors";
 import { countActive, dragEndUpdater } from "../lib/lineup-actions";
@@ -40,6 +50,11 @@ export function OrderPanel({
   const activeCount = countActive(data);
   const capacity = data.mode === "dh" ? 10 : 9;
   const pitcher = data.players.find((p) => p.id === data.pitcher);
+  const [warningPlayerId, setWarningPlayerId] = useState<string | null>(null);
+  const warningPlayer = warningPlayerId
+    ? data.players.find((p) => p.id === warningPlayerId)
+    : undefined;
+  const warningOpen = Boolean(warningPlayer);
 
   return (
     <section className="order-panel">
@@ -63,11 +78,58 @@ export function OrderPanel({
         打順・選手・守備はドラッグで入れ替え
       </p>
 
+      <AlertDialog
+        open={warningOpen}
+        onOpenChange={(open) => {
+          if (!open) setWarningPlayerId(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <div className="mb-2 inline-flex size-12 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+              <AlertTriangle className="size-5" />
+            </div>
+            <AlertDialogTitle>注意</AlertDialogTitle>
+            <AlertDialogDescription>
+              スターティングオーダーに{warningPlayer ? `${warningPlayer.name}` : ""}がいます。<br />
+              本当によろしいでしょうか？
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction
+              onClick={() => setWarningPlayerId(null)}
+            >
+              確認
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <DndContext
         sensors={sensors}
         onDragEnd={(event) => {
           const updater = dragEndUpdater(event);
-          if (updater) edit(updater);
+          if (updater) {
+            edit(updater);
+
+            const from = event.active.data.current as
+              | { kind?: string; key?: string }
+              | undefined;
+            const to = event.over?.data.current as
+              | { kind?: string; key?: string }
+              | undefined;
+            if (
+              from?.kind === "player" &&
+              from.key?.startsWith("bench:") &&
+              to?.kind === "player" &&
+              (to.key === "pitcher" || to.key?.startsWith("slot:"))
+            ) {
+              const playerId = from.key.slice(6);
+              if (data.players.find((p) => p.id === playerId)?.number === "11") {
+                setWarningPlayerId(playerId);
+              }
+            }
+          }
         }}
         collisionDetection={(args) =>
           closestCenter({
