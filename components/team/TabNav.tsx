@@ -40,6 +40,20 @@ export function TabNav({
         }}
       >
         <button
+          className={appView === "stats" ? "active" : ""}
+          onClick={() => onViewChange("stats")}
+        >
+          <BarChart3 size={16} />
+          成績入力
+        </button>
+        <button
+          className={appView === "equipment" ? "active" : ""}
+          onClick={() => onViewChange("equipment")}
+        >
+          <BriefcaseBusiness size={16} />
+          道具管理
+        </button>
+        <button
           className={appView === "lineup" && tab === "order" ? "active" : ""}
           onClick={() => {
             onViewChange("lineup");
@@ -57,22 +71,8 @@ export function TabNav({
           }}
         >
           <Users size={16} />
-          登録
+          登録情報
           <span className="count-badge">{playerCount}</span>
-        </button>
-        <button
-          className={appView === "equipment" ? "active" : ""}
-          onClick={() => onViewChange("equipment")}
-        >
-          <BriefcaseBusiness size={16} />
-          道具管理
-        </button>
-        <button
-          className={appView === "stats" ? "active" : ""}
-          onClick={() => onViewChange("stats")}
-        >
-          <BarChart3 size={16} />
-          成績
         </button>
       </nav>
       <span

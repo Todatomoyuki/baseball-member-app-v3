@@ -11,7 +11,7 @@ import type { AppView, PlayerEditorTarget, TeamTab } from "../types";
  */
 export function useTeamUiState() {
   /** アプリランチャーで選んだ画面 */
-  const [appView, setAppView] = useState<AppView>("lineup");
+  const [appView, setAppView] = useState<AppView>("stats");
   /** オーダー / 登録情報 タブ */
   const [tab, setTab] = useState<TeamTab>("order");
 

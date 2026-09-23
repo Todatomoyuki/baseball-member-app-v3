@@ -25,8 +25,8 @@ export function AppMenuModal({
       <div className="app-launcher-grid">
         <button className="app-launcher-item active" onClick={onOpenLineup}>
           <ClipboardList size={26} />
-          <strong>メンバー表作成</strong>
-          <small>試合のオーダーを作成</small>
+          <strong>選手用ツール</strong>
+          <small>成績・登録情報等</small>
         </button>
 
         <button className="app-launcher-item" aria-disabled>
