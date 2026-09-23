@@ -1610,9 +1610,8 @@ footer {
 }
 .stats-game-fields {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 112px;
-  gap: 12px;
-  align-items: end;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
   margin-bottom: 20px;
 }
 .stats-game-fields label {
