@@ -1784,6 +1784,9 @@ footer {
 .stats-number-grid input {
   height: 40px;
 }
+.stats-number-grid select {
+  height: 40px;
+}
 .stats-entry-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
