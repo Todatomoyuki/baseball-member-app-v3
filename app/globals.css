@@ -1610,9 +1610,8 @@ footer {
 }
 .stats-game-fields {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 112px;
-  gap: 12px;
-  align-items: end;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
   margin-bottom: 20px;
 }
 .stats-game-fields label {
@@ -1785,6 +1784,9 @@ footer {
 .stats-number-grid input {
   height: 40px;
 }
+.stats-number-grid select {
+  height: 40px;
+}
 .stats-entry-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1950,6 +1952,31 @@ footer {
   margin-top: 40px;
   padding: 24px;
 }
+@media (min-width: 701px) and (max-width: 1000px) {
+  .stats-confirm-player {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 16px 12px;
+    align-items: start;
+  }
+  .stats-confirm-player-name {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .stats-confirm-summary {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .stats-summary-row.first,
+  .stats-summary-row.second {
+    min-width: 650px;
+  }
+  .stats-delete-button {
+    grid-column: 2;
+    grid-row: 1;
+  }
+}
 @media (max-width: 700px) {
   .stats-page {
     padding-top: 25px;
@@ -1978,10 +2005,23 @@ footer {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .stats-confirm-player {
-    display: block;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 16px 12px;
+    align-items: start;
+  }
+  .stats-confirm-player-name {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .stats-confirm-summary {
+    grid-column: 1 / -1;
+    grid-row: 2;
   }
   .stats-delete-button {
-    margin-top: 12px;
+    grid-column: 2;
+    grid-row: 1;
+    margin-top: 0;
   }
   .stats-confirm-plate-results,
   .stats-confirm-totals {
