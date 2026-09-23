@@ -1682,6 +1682,21 @@ footer {
   border-color: #0876c9;
   background: #eef7fd;
 }
+.plate-square.filled,
+.plate-square.filled:hover {
+  border-color: #0876c9;
+  background: #f8fbfd;
+}
+.plate-square:focus {
+  border-color: #cbd9e5;
+  background: #fff !important;
+  outline: none;
+  box-shadow: none;
+}
+.plate-square.filled:focus {
+  border-color: #0876c9;
+  background: #f8fbfd !important;
+}
 .plate-square small,
 .plate-square strong {
   display: block;
@@ -1696,6 +1711,15 @@ footer {
 }
 .plate-square.hit-result strong {
   color: #c62828;
+}
+@media (hover: none) {
+  .plate-square:hover {
+    border-color: #cbd9e5;
+    background: #f8fbfd;
+  }
+  .plate-square.filled:hover {
+    border-color: #0876c9;
+  }
 }
 .scoring-position-field {
   display: flex;
@@ -1741,6 +1765,18 @@ footer {
 .plate-add-button:hover {
   background: #eef7fd;
   border-color: #0876c9;
+}
+.plate-add-button:focus {
+  background: #fff !important;
+  border-color: #8eb6d1;
+  outline: none;
+  box-shadow: none;
+}
+@media (hover: none) {
+  .plate-add-button:hover {
+    background: #fff;
+    border-color: #8eb6d1;
+  }
 }
 .plate-add-button small {
   display: block;
@@ -1842,7 +1878,7 @@ footer {
 }
 .stats-confirm-player {
   display: grid;
-  grid-template-columns: 160px minmax(0, 1fr) 70px;
+  grid-template-columns: 160px minmax(0, 1fr) 140px;
   gap: 18px;
   align-items: center;
   padding: 18px 20px;
@@ -1913,8 +1949,15 @@ footer {
   font-size: 10px;
   font-style: normal;
 }
+.stats-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  grid-column: 3;
+  grid-row: 1;
+}
+.stats-edit-button,
 .stats-delete-button {
-  justify-self: end;
   min-width: 54px;
   min-height: 32px;
   padding: 5px 8px;
@@ -1923,6 +1966,17 @@ footer {
   background: #fff7f6;
   color: #bd3c36;
   font-size: 12px;
+}
+.stats-edit-button {
+  border: 1px solid #cbd9e5;
+  border-radius: 6px;
+  background: #f8fbfd;
+  color: #315b78;
+  font-size: 12px;
+}
+.stats-edit-button:hover {
+  background: #eef7fd;
+  border-color: #0876c9;
 }
 .stats-delete-button:hover {
   background: #fde9e7;
@@ -1981,7 +2035,7 @@ footer {
   .stats-summary-row.second {
     min-width: 650px;
   }
-  .stats-delete-button {
+  .stats-confirm-actions {
     grid-column: 2;
     grid-row: 1;
   }
@@ -2004,8 +2058,26 @@ footer {
   .stats-game-fields input[type="date"] {
     display: block;
     width: 100%;
+    height: 46px;
     max-width: 100%;
     min-width: 0;
+    min-inline-size: 0;
+    box-sizing: border-box;
+    -webkit-appearance: none;
+    appearance: none;
+    overflow: hidden;
+    font-size: 16px;
+  }
+  .stats-game-fields input[type="date"]::-webkit-date-and-time-value {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    min-width: 0;
+    text-align: left;
+  }
+  .stats-game-fields input[type="date"]::-webkit-datetime-edit {
+    min-width: 0;
+    padding: 0;
   }
   .stats-player-select {
     font-size: 14px;
@@ -2033,7 +2105,7 @@ footer {
     grid-column: 1 / -1;
     grid-row: 2;
   }
-  .stats-delete-button {
+  .stats-confirm-actions {
     grid-column: 2;
     grid-row: 1;
     margin-top: 0;
