@@ -12,12 +12,14 @@ export function AppMenuModal({
   onOpenLineup,
   onOpenEquipment,
   onOpenRoster,
+  onOpenStats,
 }: {
   open: boolean;
   onClose: () => void;
   onOpenLineup: () => void;
   onOpenEquipment: () => void;
   onOpenRoster: () => void;
+  onOpenStats: () => void;
 }) {
   return (
     <Modal
@@ -39,10 +41,10 @@ export function AppMenuModal({
           <small>道具・個数・保管状況</small>
         </button>
 
-        <button className="app-launcher-item" aria-disabled>
+        <button className="app-launcher-item" onClick={onOpenStats}>
           <BarChart3 size={26} />
           <strong>成績入力</strong>
-          <small>試合・打撃・投手成績</small>
+          <small>打撃成績</small>
         </button>
 
         <button className="app-launcher-item" aria-disabled>
