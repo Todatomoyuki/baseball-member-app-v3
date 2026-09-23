@@ -89,7 +89,8 @@ export function validateStatsData(value: unknown): StatsData {
   if (!source.games || typeof source.games !== "object" || Array.isArray(source.games)) throw new Error("Invalid games");
   const games: Record<string, GameStats> = {};
   for (const [key, rawGame] of Object.entries(source.games)) {
-    if (!parseGameKey(key)) throw new Error("Invalid game key");
+    const parsed = parseGameKey(key);
+    if (!parsed || gameKey(parsed.date, parsed.number) !== key) throw new Error("Invalid game key");
     if (!rawGame || typeof rawGame !== "object" || Array.isArray(rawGame)) throw new Error("Invalid game");
     const game: GameStats = {};
     for (const [playerId, raw] of Object.entries(rawGame)) {

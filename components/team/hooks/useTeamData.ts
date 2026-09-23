@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { initialData, type TeamData } from "@/lib/model";
-import { api, type ApiError } from "../lib/api";
+import { api, type ApiError, type TeamPollResponse } from "../lib/api";
 import type { AuthState, SaveState } from "../types";
 
 /**
@@ -10,7 +10,7 @@ import type { AuthState, SaveState } from "../types";
  * ここが担当するのは「サーバーとの同期」だけで、画面の見た目には関与しません。
  *  - 起動時の認証チェック + 初回ロード
  *  - 変更から 650ms 後のデバウンス自動保存（楽観ロック: revision）
- *  - 20 秒ごとのポーリング（自分が編集中でないときだけ最新を取り込む）
+ *  - 60 秒ごとの条件付きポーリング（自分が編集中でないときだけ最新を取り込む）
  *  - 未保存のままページを離れようとしたときの警告
  */
 export function useTeamData() {
@@ -30,6 +30,8 @@ export function useTeamData() {
   const saved = useRef("");
   /** 保存リクエストが飛んでいる最中かどうか */
   const saving = useRef(false);
+  /** 取得後に編集・保存などが始まった場合、古いポーリング応答を破棄する。 */
+  const syncVersion = useRef(0);
   /** 画面が今持っている内容。ポーリングの判定で参照する */
   const currentDraft = useRef("");
   currentDraft.current = JSON.stringify(data);
@@ -37,6 +39,7 @@ export function useTeamData() {
   /* ---------------- ロード ---------------- */
 
   const load = useCallback(async () => {
+    syncVersion.current += 1;
     const result = await api("/api/team");
     saved.current = JSON.stringify(result.data);
     setData(result.data);
@@ -59,6 +62,7 @@ export function useTeamData() {
 
   /** TeamData を書き換える唯一の入口。複製済みの draft を渡すので破壊的に触ってよい */
   const edit = useCallback((fn: (d: TeamData) => TeamData) => {
+    syncVersion.current += 1;
     setData((current) => fn(structuredClone(current)));
     setSaveState((v) => (v === "conflict" ? v : "dirty"));
   }, []);
@@ -75,13 +79,14 @@ export function useTeamData() {
       return;
     const timer = setTimeout(async () => {
       const payload = JSON.stringify(data);
+      syncVersion.current += 1;
       saving.current = true;
       setSaveState("saving");
       try {
         const result = await api("/api/team", "PUT", { data, revision });
         saved.current = payload;
         setRevision(result.revision);
-        setSaveState("dirty"); // 直後の useEffect で "saved" に落ち着く
+        setSaveState(currentDraft.current === payload ? "saved" : "dirty");
         setError("");
       } catch (e) {
         const err = e as ApiError;
@@ -103,30 +108,47 @@ export function useTeamData() {
       JSON.stringify(data) === saved.current
     )
       setSaveState("saved");
-  }, [data, saveState]);
+  }, [data, saveState, revision]);
 
   /* ---------------- ポーリング ---------------- */
 
   useEffect(() => {
     if (auth !== "ready") return;
+    let active = true;
+    let polling = false;
     const id = setInterval(() => {
       if (
+        polling ||
         saving.current ||
-        JSON.stringify(data) !== saved.current ||
+        currentDraft.current !== saved.current ||
         document.visibilityState !== "visible"
       )
         return;
-      void api("/api/team")
+      const requestVersion = syncVersion.current;
+      polling = true;
+      void api<TeamPollResponse>(`/api/team?revision=${revision}`)
         .then((r) => {
-          if (r.revision !== revision && currentDraft.current === saved.current) {
+          if (
+            active &&
+            !r.unchanged &&
+            !saving.current &&
+            requestVersion === syncVersion.current &&
+            r.revision !== revision &&
+            currentDraft.current === saved.current &&
+            document.visibilityState === "visible"
+          ) {
             saved.current = JSON.stringify(r.data);
             setData(r.data);
             setRevision(r.revision);
           }
         })
-        .catch(() => {});
-    }, 20000);
-    return () => clearInterval(id);
+        .catch(() => {})
+        .finally(() => { polling = false; });
+    }, 60000);
+    return () => {
+      active = false;
+      clearInterval(id);
+    };
   }, [auth, data, revision]);
 
   /* ---------------- 離脱警告 ---------------- */
@@ -167,6 +189,7 @@ export function useTeamData() {
 
   /** ログアウト。失敗した場合は呼び出し側で catch してメッセージを出す */
   const logout = useCallback(async () => {
+    syncVersion.current += 1;
     await api("/api/auth", "DELETE");
     saved.current = "";
     setData(initialData());

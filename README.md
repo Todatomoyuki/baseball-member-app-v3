@@ -1,5 +1,7 @@
 # baseball-member-app-v3
 
+既存DBを使う場合は [DB正規化の移行手順](docs/database-normalization.md) を確認してください。新しいAPIには `0003_normalize_data.sql` までの適用が必要です。
+
 ## 🗺️ 今後の画面構成
 
 ![YG WEB 画面構成](docs/images/画面イメージ（初期）.png)
@@ -59,6 +61,9 @@ npm run build
 
 ```powershell
 npx wrangler d1 execute yg_member_db --local --persist-to="./.wrangler/state" --file="./drizzle/0000_military_bloodstrike.sql" --config="./dist/server/wrangler.json"
+npx wrangler d1 execute yg_member_db --local --persist-to="./.wrangler/state" --file="./drizzle/0001_add_equipment_state.sql" --config="./dist/server/wrangler.json"
+npx wrangler d1 execute yg_member_db --local --persist-to="./.wrangler/state" --file="./drizzle/0002_add_stats_state.sql" --config="./dist/server/wrangler.json"
+npx wrangler d1 execute yg_member_db --local --persist-to="./.wrangler/state" --file="./drizzle/0003_normalize_data.sql" --config="./dist/server/wrangler.json"
 ```
 
 ローカルDBは以下に保存されます。
@@ -71,7 +76,7 @@ npx wrangler d1 execute yg_member_db --local --persist-to="./.wrangler/state" --
 
 ### 5. テストデータを投入
 
-開発用として、選手10人程度の初期データを投入します。
+開発用として、選手16名・道具9個の初期データを投入します。
 
 `drizzle/seed.local.sql` を使用します。
 
@@ -79,7 +84,7 @@ npx wrangler d1 execute yg_member_db --local --persist-to="./.wrangler/state" --
 npx wrangler d1 execute yg_member_db --local --persist-to="./.wrangler/state" --file="./drizzle/seed.local.sql" --config="./dist/server/wrangler.json"
 ```
 
-`seed.local.sql` はローカル開発用のデータのみを登録します。
+`seed.local.sql` はチーム・道具・成績を初期化するローカル開発専用SQLです。既存データを移行する場合は実行しません。
 
 ---
 
@@ -134,7 +139,7 @@ npx wrangler d1 execute yg_member_db --local --persist-to="./.wrangler/state" --
 アプリデータ:
 
 ```powershell
-npx wrangler d1 execute yg_member_db --local --persist-to="./.wrangler/state" --config="./dist/server/wrangler.json" --command="SELECT * FROM team_state;"
+npx wrangler d1 execute yg_member_db --local --persist-to="./.wrangler/state" --config="./dist/server/wrangler.json" --command="SELECT * FROM players WHERE sort_order IS NOT NULL ORDER BY sort_order;"
 ```
 
 SQLiteファイルをA5:SQL Mk-2などで直接確認することもできます。

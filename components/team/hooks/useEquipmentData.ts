@@ -70,6 +70,8 @@ export function useEquipmentData() {
 
   const saved = useRef("");
   const saving = useRef(false);
+  const currentDraft = useRef("");
+  currentDraft.current = JSON.stringify(data);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -158,7 +160,7 @@ export function useEquipmentData() {
         saved.current = payload;
         setRevision(result.revision);
 
-        setSaveState("saved");
+        setSaveState(currentDraft.current === payload ? "saved" : "dirty");
         setError("");
       } catch (e) {
         const err = e as Error & {
@@ -191,11 +193,12 @@ export function useEquipmentData() {
   useEffect(() => {
     if (
       saveState === "dirty" &&
+      !saving.current &&
       JSON.stringify(data) === saved.current
     ) {
       setSaveState("saved");
     }
-  }, [data, saveState]);
+  }, [data, saveState, revision]);
 
   return {
     data,

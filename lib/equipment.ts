@@ -71,5 +71,9 @@ export function validateEquipmentData(value: unknown): EquipmentData {
         };
     });
 
+    if (new Set(items.map((item) => item.id)).size !== items.length) {
+        throw new Error("Duplicate equipment id");
+    }
+
     return { items };
 }

@@ -19,6 +19,8 @@ export function useStatsData() {
   const [error, setError] = useState("");
   const saved = useRef("");
   const saving = useRef(false);
+  const currentDraft = useRef("");
+  currentDraft.current = JSON.stringify(data);
 
   const load = useCallback(async () => {
     setLoading(true); setError("");
@@ -40,10 +42,17 @@ export function useStatsData() {
     const timer = window.setTimeout(async () => {
       const payload = JSON.stringify(data); saving.current = true; setSaveState("saving");
       try {
-        const result = await statsApi("PUT", { data, revision });
+        const previous = saved.current ? JSON.parse(saved.current) as StatsData : initialStatsData();
+        const games = Object.fromEntries(
+          Object.entries(data.games).filter(([key, game]) =>
+            JSON.stringify(game) !== JSON.stringify(previous.games[key]),
+          ),
+        );
+        const removedGames = Object.keys(previous.games).filter((key) => !Object.hasOwn(data.games, key));
+        const result = await statsApi("PUT", { data: { games }, removedGames, partial: true, revision });
         saved.current = payload;
         setRevision(result.revision);
-        setSaveState((current) => current === "dirty" ? current : "saved");
+        setSaveState(currentDraft.current === payload ? "saved" : "dirty");
         setError("");
       }
       catch (e) { const error = e as Error & { status?: number }; setError(error.message); setSaveState(error.status === 409 ? "conflict" : "error"); }
@@ -51,5 +60,10 @@ export function useStatsData() {
     }, 650);
     return () => window.clearTimeout(timer);
   }, [data, revision, saveState, loading]);
+  useEffect(() => {
+    if (saveState === "dirty" && !saving.current && JSON.stringify(data) === saved.current) {
+      setSaveState("saved");
+    }
+  }, [data, revision, saveState]);
   return { data, loading, error, setError, saveState, edit, load };
 }
