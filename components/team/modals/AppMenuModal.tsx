@@ -44,7 +44,7 @@ export function AppMenuModal({
         <button className="app-launcher-item" onClick={onOpenStats}>
           <BarChart3 size={26} />
           <strong>成績入力</strong>
-          <small>試合・打撃・投手成績</small>
+          <small>打撃成績</small>
         </button>
 
         <button className="app-launcher-item" aria-disabled>
