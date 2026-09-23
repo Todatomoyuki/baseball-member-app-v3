@@ -1608,11 +1608,20 @@ footer {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.stats-player-select:focus {
+  border-color: #d5e0e9;
+  background: #fff;
+  outline: none;
+  box-shadow: none;
+}
 .stats-game-fields {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   margin-bottom: 20px;
+}
+.stats-game-fields > div {
+  min-width: 0;
 }
 .stats-game-fields label {
   margin-bottom: 8px;
@@ -1991,6 +2000,12 @@ footer {
   }
   .stats-entry-card {
     padding: 20px 18px;
+  }
+  .stats-game-fields input[type="date"] {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
   }
   .stats-player-select {
     font-size: 14px;
