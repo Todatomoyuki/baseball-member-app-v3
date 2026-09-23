@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { LogOut } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import type { AuthMember } from "@/lib/auth-types";
 import { Modal } from "../common/Modal";
 import { api } from "../lib/api";
 
@@ -15,10 +16,12 @@ export function SettingsModal({
   open,
   onClose,
   onRequestLogout,
+  member,
 }: {
   open: boolean;
   onClose: () => void;
   onRequestLogout: () => Promise<void>;
+  member: AuthMember | null;
 }) {
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -28,6 +31,7 @@ export function SettingsModal({
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (!member?.isAdmin) return;
     if (newPassword !== confirmPassword) {
       setMessage("新しいパスワードが一致しません。");
       return;
@@ -64,56 +68,66 @@ export function SettingsModal({
       open={open}
       onClose={onClose}
       title="チームの設定"
-      description="共通パスワードを変更すると、ほかの端末は再ログインが必要です。"
+      description={member?.isAdmin
+        ? "共通パスワードを変更すると、ほかの端末は再ログインが必要です。"
+        : "共通パスワードの変更は管理者のみ行えます。"}
     >
-      <form onSubmit={submit}>
-        <label>
-          現在のパスワード
-          <Input
-            required
-            type="password"
-            autoComplete="current-password"
-            value={oldPassword}
-            onChange={(e) => setOldPassword(e.target.value)}
-            maxLength={128}
-          />
-        </label>
-        <label>
-          新しいパスワード（12文字以上）
-          <Input
-            required
-            type="password"
-            autoComplete="new-password"
-            minLength={12}
-            maxLength={128}
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-          />
-        </label>
-        <label>
-          新しいパスワード（確認）
-          <Input
-            required
-            type="password"
-            autoComplete="new-password"
-            minLength={12}
-            maxLength={128}
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-          />
-        </label>
-        {message && <p role="status">{message}</p>}
-        <button className="primary full" disabled={busy}>
-          パスワードを変更
-        </button>
-      </form>
+      {member && (
+        <p className="modal-description">
+          この端末のメンバー：{member.name}{member.isAdmin ? "（管理者）" : ""}
+        </p>
+      )}
+      {member?.isAdmin && (
+        <form onSubmit={submit}>
+          <label>
+            現在のパスワード
+            <Input
+              required
+              type="password"
+              autoComplete="current-password"
+              value={oldPassword}
+              onChange={(e) => setOldPassword(e.target.value)}
+              maxLength={128}
+            />
+          </label>
+          <label>
+            新しいパスワード（12文字以上）
+            <Input
+              required
+              type="password"
+              autoComplete="new-password"
+              minLength={12}
+              maxLength={128}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+            />
+          </label>
+          <label>
+            新しいパスワード（確認）
+            <Input
+              required
+              type="password"
+              autoComplete="new-password"
+              minLength={12}
+              maxLength={128}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+            />
+          </label>
+          <button className="primary full" disabled={busy}>
+            パスワードを変更
+          </button>
+        </form>
+      )}
+
+      {message && <p role="status">{message}</p>}
 
       <button className="logout-button" onClick={() => void logout()}>
         <LogOut size={17} />
         この端末からログアウト
       </button>
       <p className="modal-description">
-        ログイン状態は180日間保持し、利用時に延長します。ブラウザーのデータを消去した場合は再ログインが必要です。
+        ログイン状態は利用時に延長します。ブラウザーのデータ削除やパスワード変更後は再ログインが必要です。
       </p>
     </Modal>
   );

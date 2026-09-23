@@ -30,6 +30,8 @@ export const players = sqliteTable("players", {
     name: text("name").notNull(),
     number: text("number").notNull(),
     kana: text("kana").notNull(),
+    // Authorization belongs to the stable member ID, not the editable name.
+    isAdmin: integer("is_admin").notNull().default(0),
     // NULL retains a former member for equipment/statistics references.
     sortOrder: integer("sort_order"),
     benchOrder: integer("bench_order"),
@@ -110,9 +112,15 @@ export const authConfig = sqliteTable("auth_config", {
     salt: text("salt").notNull(),
     hash: text("hash").notNull(),
 });
+export const memberDevices = sqliteTable("member_devices", {
+    hash: text("hash").primaryKey(),
+    playerId: text("player_id").notNull().references(() => players.id),
+});
 export const sessions = sqliteTable("sessions", {
     hash: text("hash").primaryKey(),
+    // 0 means no server-side expiry; existing finite sessions retain their expiry.
     expires: integer("expires").notNull(),
+    deviceHash: text("device_hash").references(() => memberDevices.hash),
 });
 export const loginAttempts = sqliteTable("login_attempts", {
     key: text("key").primaryKey(),

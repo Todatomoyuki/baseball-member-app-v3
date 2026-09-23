@@ -13,7 +13,7 @@ export type TeamTab = "order" | "players";
 export type SaveState = "saved" | "dirty" | "saving" | "error" | "conflict";
 
 /** ログイン状態 */
-export type AuthState = "loading" | "login" | "ready";
+export type AuthState = "loading" | "login" | "member-selection" | "ready";
 
 /**
  * ドラッグ&ドロップの識別子。

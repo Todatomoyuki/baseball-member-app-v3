@@ -1,7 +1,10 @@
--- ローカル開発用。0003_normalize_data.sql 適用後に実行してください。
+-- ローカル開発用。0004_member_devices.sql 適用後に実行してください。
 -- チーム・道具・成績を初期化し、YGファイヤーズの選手16名を登録します。
--- 認証情報と旧JSONバックアップ（*_state）は変更しません。
+-- セッション・端末とメンバーの紐づけも初期化します。再ログインが必要です。
+-- 共通パスワードと旧JSONバックアップ（*_state）は変更しません。
 
+DELETE FROM sessions;
+DELETE FROM member_devices;
 DELETE FROM plate_appearances;
 DELETE FROM player_game_stats;
 DELETE FROM stats_games;
@@ -28,6 +31,10 @@ INSERT INTO players (id, name, number, kana, sort_order) VALUES
   ('00000000-0000-4000-8000-000000000014', '川高　佑介', '96', 'かわたか ゆうすけ', 13),
   ('00000000-0000-4000-8000-000000000015', '堀江　啓佑', '9', 'ほりえ けいすけ', 14),
   ('00000000-0000-4000-8000-000000000016', '千明　嵩典', '42', 'ちあき たかのり', 15);
+
+-- 安曇 幸寛・戸田 朋幸を管理者に設定します。
+UPDATE players SET is_admin = 1
+WHERE id IN ('00000000-0000-4000-8000-000000000008', '00000000-0000-4000-8000-000000000011');
 
 INSERT INTO team_settings (id, team_name, manager, tournament, game_date, opponent, mode, pitcher_id)
 VALUES (1, 'YGファイヤーズ', '池原　海斗', '', date('now', '+9 hours', '+1 day', 'weekday 6'), '', 'normal', NULL);

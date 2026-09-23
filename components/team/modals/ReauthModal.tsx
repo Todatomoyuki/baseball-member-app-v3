@@ -1,8 +1,10 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
+import type { AuthMember, AuthResponse, LoginMember } from "@/lib/auth-types";
 import { Modal } from "../common/Modal";
-import { api } from "../lib/api";
+import { MemberSelectionForm } from "../common/MemberSelectionForm";
+import { api, type ApiError } from "../lib/api";
 
 /**
  * 保存中にセッションが切れた（401）ときに出る再ログインモーダル。
@@ -15,23 +17,69 @@ export function ReauthModal({
 }: {
   open: boolean;
   onClose: () => void;
-  /** ログイン成功時。保存状態を "dirty" に戻して自動保存を再開させる */
-  onSuccess: () => void;
+  /** ログイン成功時。同じメンバーであることを確認してから保存を再開する。 */
+  onSuccess: (member: AuthMember) => void | Promise<void>;
 }) {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [members, setMembers] = useState<LoginMember[] | null>(null);
+  const [selectedMemberId, setSelectedMemberId] = useState("");
+
+  useEffect(() => {
+    if (open) return;
+    setPassword("");
+    setMembers(null);
+    setSelectedMemberId("");
+    setError("");
+  }, [open]);
+
+  async function acceptAuth(result: AuthResponse) {
+    if (result.needsMemberSelection) {
+      setMembers(result.members ?? []);
+      setSelectedMemberId("");
+      return;
+    }
+    if (!result.authenticated || !result.member) {
+      setMembers(null);
+      setSelectedMemberId("");
+      throw new Error("ログイン状態を確認できませんでした。もう一度ログインしてください。");
+    }
+    await onSuccess(result.member);
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (busy) return;
     setBusy(true);
     setError("");
     try {
-      await api("/api/auth", "POST", { password });
+      const result = await api<AuthResponse>("/api/auth", "POST", { password });
       setPassword("");
-      onSuccess();
+      await acceptAuth(result);
     } catch (err) {
       setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function chooseMember(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedMemberId || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      const result = await api<AuthResponse>("/api/auth", "PATCH", {
+        playerId: selectedMemberId,
+      });
+      await acceptAuth(result);
+    } catch (err) {
+      setError((err as Error).message);
+      if ((err as ApiError).status === 401) {
+        setMembers(null);
+        setSelectedMemberId("");
+      }
     } finally {
       setBusy(false);
     }
@@ -44,22 +92,34 @@ export function ReauthModal({
       title="再ログイン"
       description="編集内容を残したままログインし直します。"
     >
-      <form onSubmit={submit}>
-        <label>
-          チーム共通パスワード
-          <Input
-            type="password"
-            required
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </label>
-        {error && <p role="alert">{error}</p>}
-        <button className="primary full" disabled={busy}>
-          ログインして保存を再開
-        </button>
-      </form>
+      {members !== null ? (
+        <MemberSelectionForm
+          members={members}
+          selectedMemberId={selectedMemberId}
+          onMemberChange={setSelectedMemberId}
+          onSubmit={chooseMember}
+          busy={busy}
+          error={error}
+        />
+      ) : (
+        <form onSubmit={submit}>
+          <label>
+            チーム共通パスワード
+            <Input
+              type="password"
+              required
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              maxLength={128}
+            />
+          </label>
+          {error && <p role="alert">{error}</p>}
+          <button className="primary full" disabled={busy}>
+            {busy ? "確認中…" : "ログインして保存を再開"}
+          </button>
+        </form>
+      )}
     </Modal>
   );
 }

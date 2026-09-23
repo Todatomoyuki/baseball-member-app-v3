@@ -1,7 +1,8 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { initialData, type TeamData } from "@/lib/model";
-import { api, type ApiError, type TeamPollResponse } from "../lib/api";
+import type { AuthMember, AuthResponse, LoginMember } from "@/lib/auth-types";
+import { api, type ApiError, type TeamLoadResponse, type TeamPollResponse } from "../lib/api";
 import type { AuthState, SaveState } from "../types";
 
 /**
@@ -20,6 +21,9 @@ export function useTeamData() {
   const [saveState, setSaveState] = useState<SaveState>("saved");
   const [error, setError] = useState("");
   const [reauth, setReauth] = useState(false);
+  const [member, setMember] = useState<AuthMember | null>(null);
+  const [loginMembers, setLoginMembers] = useState<LoginMember[]>([]);
+  const [selectedMemberId, setSelectedMemberId] = useState("");
 
   // ログインフォーム
   const [password, setPassword] = useState("");
@@ -40,23 +44,51 @@ export function useTeamData() {
 
   const load = useCallback(async () => {
     syncVersion.current += 1;
-    const result = await api("/api/team");
+    const result = await api<TeamLoadResponse>("/api/team");
     saved.current = JSON.stringify(result.data);
     setData(result.data);
     setRevision(result.revision);
+    setMember(result.member);
     setSaveState("saved");
     setError("");
     setAuth("ready");
   }, []);
 
+  const acceptAuth = useCallback(async (result: AuthResponse) => {
+    if (result.needsMemberSelection) {
+      setMember(null);
+      setLoginMembers(result.members ?? []);
+      setSelectedMemberId("");
+      setAuth("member-selection");
+      return;
+    }
+    if (!result.authenticated || !result.member) {
+      setMember(null);
+      setLoginMembers([]);
+      setSelectedMemberId("");
+      setAuth("login");
+      return;
+    }
+    setMember(result.member);
+    setLoginMembers([]);
+    setSelectedMemberId("");
+    setAuth("loading");
+    try {
+      await load();
+    } catch (err) {
+      setAuth("login");
+      throw err;
+    }
+  }, [load]);
+
   useEffect(() => {
-    void api("/api/auth")
-      .then((r) => (r.authenticated ? load() : setAuth("login")))
+    void api<AuthResponse>("/api/auth")
+      .then(acceptAuth)
       .catch((e: Error) => {
         setLoginError(e.message);
         setAuth("login");
       });
-  }, [load]);
+  }, [acceptAuth]);
 
   /* ---------------- 編集 ---------------- */
 
@@ -128,6 +160,27 @@ export function useTeamData() {
       polling = true;
       void api<TeamPollResponse>(`/api/team?revision=${revision}`)
         .then((r) => {
+          if (!active) return;
+          if (member?.id !== r.member.id) {
+            // 別タブなどで端末のメンバーが変わった場合も、旧draftを送信しない。
+            syncVersion.current += 1;
+            setAuth("loading");
+            setSaveState("saved");
+            setMember(r.member);
+            void load().catch((err: Error) => {
+              setLoginError(err.message);
+              setAuth("login");
+            });
+            return;
+          }
+          setMember((current) =>
+            current?.id === r.member.id &&
+            current.name === r.member.name &&
+            current.number === r.member.number &&
+            current.isAdmin === r.member.isAdmin
+              ? current
+              : r.member,
+          );
           if (
             active &&
             !r.unchanged &&
@@ -149,7 +202,7 @@ export function useTeamData() {
       active = false;
       clearInterval(id);
     };
-  }, [auth, data, revision]);
+  }, [auth, data, revision, member?.id, load]);
 
   /* ---------------- 離脱警告 ---------------- */
 
@@ -172,19 +225,45 @@ export function useTeamData() {
   const login = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
+      if (loginBusy) return;
       setLoginBusy(true);
       setLoginError("");
       try {
-        await api("/api/auth", "POST", { password });
+        const result = await api<AuthResponse>("/api/auth", "POST", { password });
         setPassword("");
-        await load();
+        await acceptAuth(result);
       } catch (err) {
         setLoginError((err as Error).message);
       } finally {
         setLoginBusy(false);
       }
     },
-    [password, load],
+    [password, loginBusy, acceptAuth],
+  );
+
+  const chooseMember = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!selectedMemberId || loginBusy) return;
+      setLoginBusy(true);
+      setLoginError("");
+      try {
+        const result = await api<AuthResponse>("/api/auth", "PATCH", {
+          playerId: selectedMemberId,
+        });
+        await acceptAuth(result);
+      } catch (err) {
+        setLoginError((err as Error).message);
+        if ((err as ApiError).status === 401) {
+          setLoginMembers([]);
+          setSelectedMemberId("");
+          setAuth("login");
+        }
+      } finally {
+        setLoginBusy(false);
+      }
+    },
+    [selectedMemberId, loginBusy, acceptAuth],
   );
 
   /** ログアウト。失敗した場合は呼び出し側で catch してメッセージを出す */
@@ -193,16 +272,38 @@ export function useTeamData() {
     await api("/api/auth", "DELETE");
     saved.current = "";
     setData(initialData());
+    setRevision(0);
+    setSaveState("saved");
+    setMember(null);
+    setLoginMembers([]);
+    setSelectedMemberId("");
+    setPassword("");
+    setLoginError("");
+    setReauth(false);
     setAuth("login");
     setError("");
   }, []);
 
   /** 再ログイン成功後、保存を再開する */
-  const resumeAfterReauth = useCallback(() => {
+  const resumeAfterReauth = useCallback(async (nextMember: AuthMember) => {
+    setMember(nextMember);
     setReauth(false);
-    setSaveState("dirty");
     setError("");
-  }, []);
+    if (member?.id !== nextMember.id) {
+      // 別のメンバーで再認証した場合、前のメンバーの編集内容を送信しない。
+      syncVersion.current += 1;
+      setAuth("loading");
+      setSaveState("saved");
+      try {
+        await load();
+      } catch (err) {
+        setLoginError((err as Error).message);
+        setAuth("login");
+      }
+      return;
+    }
+    setSaveState("dirty");
+  }, [member?.id, load]);
 
   return {
     // データ
@@ -217,6 +318,11 @@ export function useTeamData() {
     error,
     setError,
     // 認証
+    member,
+    loginMembers,
+    selectedMemberId,
+    setSelectedMemberId,
+    chooseMember,
     password,
     setPassword,
     loginBusy,

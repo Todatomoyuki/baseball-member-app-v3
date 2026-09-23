@@ -1,17 +1,17 @@
 import { env } from "cloudflare:workers";
+import type { AuthMember } from "@/lib/auth-types";
 const encoder = new TextEncoder();
 export function db() {
     if (!env.DB) throw new Error("保存先に接続できません。");
     return env.DB;
 }
 export function json(value: unknown, status = 200, headers: HeadersInit = {}) {
+    const responseHeaders = new Headers(headers);
+    responseHeaders.set("Cache-Control", "no-store");
+    responseHeaders.set("X-Content-Type-Options", "nosniff");
     return Response.json(value, {
         status,
-        headers: {
-            "Cache-Control": "no-store",
-            "X-Content-Type-Options": "nosniff",
-            ...headers,
-        },
+        headers: responseHeaders,
     });
 }
 export function sameOrigin(req: Request) {
@@ -60,20 +60,26 @@ export async function passwordHash(password: string, salt: string) {
         v.toString(16).padStart(2, "0"),
     ).join("");
 }
-export async function checkPassword(password: string) {
+export type PasswordProof = { salt: string | null; hash: string | null };
+export async function verifyPassword(password: string): Promise<PasswordProof | null> {
     const config = await db()
         .prepare("SELECT salt,hash FROM auth_config WHERE id=1")
         .first<{ salt: string; hash: string }>();
     if (config)
-        return equal(await passwordHash(password, config.salt), config.hash);
+        return equal(await passwordHash(password, config.salt), config.hash) ? config : null;
     if (!env.TEAM_BOOTSTRAP_PASSWORD)
         throw new Error("ログイン設定を準備中です。");
     return equal(
         await digest(password),
         await digest(env.TEAM_BOOTSTRAP_PASSWORD),
-    );
+    ) ? { salt: null, hash: null } : null;
 }
-const ttl = 60 * 60 * 24 * 180;
+export async function checkPassword(password: string) {
+    return !!(await verifyPassword(password));
+}
+// Browsers cap persistent cookies. Renew on authenticated responses without
+// writing an expiry extension to D1; linked sessions have expires=0.
+const ttl = 60 * 60 * 24 * 400;
 export function cookieName(req: Request) {
     return new URL(req.url).protocol === "https:"
         ? "__Host-team_session"
@@ -82,32 +88,79 @@ export function cookieName(req: Request) {
 export function cookie(req: Request, token: string, age = ttl) {
     return `${cookieName(req)}=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${age}${new URL(req.url).protocol === "https:" ? "; Secure" : ""}`;
 }
-export function token(req: Request) {
+function deviceCookieName(req: Request) {
+    return new URL(req.url).protocol === "https:"
+        ? "__Host-team_device"
+        : "team_device";
+}
+export function deviceCookie(req: Request, value: string) {
+    return `${deviceCookieName(req)}=${value}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${ttl}${new URL(req.url).protocol === "https:" ? "; Secure" : ""}`;
+}
+function readCookie(req: Request, name: string) {
     return (
         (req.headers.get("Cookie") ?? "")
             .split(";")
             .map((v) => v.trim())
-            .find((v) => v.startsWith(cookieName(req) + "="))
+            .find((v) => v.startsWith(name + "="))
             ?.split("=")[1] ?? ""
     );
 }
-export async function authorized(req: Request) {
-    const value = token(req);
-    if (!/^[a-f0-9]{64}$/.test(value)) return false;
-    return !!(await db()
-        .prepare("SELECT hash FROM sessions WHERE hash=? AND expires>?")
-        .bind(await digest(value), Date.now())
-        .first());
+export function token(req: Request) {
+    return readCookie(req, cookieName(req));
 }
-export async function newSession(req: Request) {
-    const value = random();
-    await db().batch([
-        db().prepare("DELETE FROM sessions WHERE expires<?").bind(Date.now()),
-        db()
-            .prepare("INSERT INTO sessions(hash,expires) VALUES(?,?)")
-            .bind(await digest(value), Date.now() + ttl * 1000),
-    ]);
-    return cookie(req, value);
+export function deviceToken(req: Request) {
+    return readCookie(req, deviceCookieName(req));
+}
+export function validToken(value: string) {
+    return /^[a-f0-9]{64}$/.test(value);
+}
+export type AuthSession = {
+    hash: string;
+    deviceHash: string | null;
+    member: AuthMember | null;
+};
+export async function getSession(req: Request): Promise<AuthSession | null> {
+    const value = token(req);
+    if (!validToken(value)) return null;
+    const row = await db()
+        .prepare(`
+            SELECT s.hash, s.device_hash, p.id, p.name, p.number, p.is_admin
+            FROM sessions s
+            LEFT JOIN member_devices d ON d.hash=s.device_hash
+            LEFT JOIN players p ON p.id=d.player_id AND p.sort_order IS NOT NULL
+            WHERE s.hash=? AND (s.expires=0 OR s.expires>?)
+                AND (s.device_hash IS NULL OR p.id IS NOT NULL)
+        `)
+        .bind(await digest(value), Date.now())
+        .first<{
+            hash: string;
+            device_hash: string | null;
+            id: string | null;
+            name: string | null;
+            number: string | null;
+            is_admin: number | null;
+        }>();
+    if (!row) return null;
+    return {
+        hash: row.hash,
+        deviceHash: row.device_hash,
+        member: row.id === null ? null : {
+            id: row.id,
+            name: row.name ?? "",
+            number: row.number ?? "",
+            isAdmin: row.is_admin === 1,
+        },
+    };
+}
+export async function authorized(req: Request) {
+    return !!(await getSession(req))?.member;
+}
+// Call only after validating a linked session (including readSnapshot's auth).
+export function renewSessionHeaders(req: Request) {
+    const headers = new Headers();
+    if (validToken(token(req))) headers.append("Set-Cookie", cookie(req, token(req)));
+    if (validToken(deviceToken(req))) headers.append("Set-Cookie", deviceCookie(req, deviceToken(req)));
+    return headers;
 }
 export async function rateLimit(req: Request) {
     const key = await digest(

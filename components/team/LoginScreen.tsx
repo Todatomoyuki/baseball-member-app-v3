@@ -1,7 +1,9 @@
 "use client";
 import { LockKeyhole, ShieldCheck } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import type { LoginMember } from "@/lib/auth-types";
 import { BrandButton } from "./common/BrandButton";
+import { MemberSelectionForm } from "./common/MemberSelectionForm";
 import type { AuthState } from "./types";
 
 /**
@@ -13,6 +15,10 @@ export function LoginScreen({
   password,
   onPasswordChange,
   onSubmit,
+  loginMembers,
+  selectedMemberId,
+  onMemberChange,
+  onChooseMember,
   busy,
   error,
   onBrandClick,
@@ -21,6 +27,10 @@ export function LoginScreen({
   password: string;
   onPasswordChange: (value: string) => void;
   onSubmit: (e: React.FormEvent) => void;
+  loginMembers: LoginMember[];
+  selectedMemberId: string;
+  onMemberChange: (id: string) => void;
+  onChooseMember: (e: React.FormEvent) => void;
   busy: boolean;
   error: string;
   onBrandClick: () => void;
@@ -44,6 +54,15 @@ export function LoginScreen({
 
         {auth === "loading" ? (
           <p role="status">ログイン状態を確認しています…</p>
+        ) : auth === "member-selection" ? (
+          <MemberSelectionForm
+            members={loginMembers}
+            selectedMemberId={selectedMemberId}
+            onMemberChange={onMemberChange}
+            onSubmit={onChooseMember}
+            busy={busy}
+            error={error}
+          />
         ) : (
           <form onSubmit={onSubmit}>
             <label>

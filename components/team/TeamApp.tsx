@@ -132,13 +132,17 @@ export function TeamApp() {
 
   /* ---------------- 未ログイン ---------------- */
 
-  if (team.auth !== "ready") {
+  if (team.auth !== "ready" || !team.member) {
     return (
       <LoginScreen
         auth={team.auth}
         password={team.password}
         onPasswordChange={team.setPassword}
         onSubmit={team.login}
+        loginMembers={team.loginMembers}
+        selectedMemberId={team.selectedMemberId}
+        onMemberChange={team.setSelectedMemberId}
+        onChooseMember={team.chooseMember}
         busy={team.loginBusy}
         error={team.loginError}
         onBrandClick={() => ui.setAppMenuOpen(true)}
@@ -174,12 +178,15 @@ export function TeamApp() {
 
       {ui.appView === "equipment" ? (
         <EquipmentView
+          key={team.member.id}
           players={data.players}
           appNavigation={appNavigation}
           onSaveStateChange={setEquipmentSaveState}
         />
       ) : ui.appView === "stats" ? (
         <StatsView
+          key={team.member.id}
+          member={team.member}
           players={data.players}
           appNavigation={appNavigation}
           onSaveStateChange={setStatsSaveState}
@@ -230,6 +237,7 @@ export function TeamApp() {
             />
           ) : (
             <RegistrationPanel
+              key={team.member.id}
               players={data.players}
               bench={bench}
               absent={absent}
@@ -322,6 +330,7 @@ export function TeamApp() {
 
       <SettingsModal
         open={ui.settings}
+        member={team.member}
         onClose={() => ui.setSettings(false)}
         onRequestLogout={requestLogout}
       />

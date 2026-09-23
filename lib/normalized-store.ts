@@ -2,6 +2,7 @@ import { type TeamData } from "./model";
 import { type EquipmentData } from "./equipment";
 import { emptyPlayerStats, gameKey, parseGameKey, type StatsData, type PlateAppearanceResult } from "./stats";
 import { db, digest, random, token } from "./server";
+import type { AuthMember } from "./auth-types";
 
 export type DataScope = "team" | "equipment" | "stats";
 export type ScopeData = { team: TeamData; equipment: EquipmentData; stats: StatsData };
@@ -45,7 +46,13 @@ function snapshotSql(scope: DataScope, partitioned: boolean) {
   ).join(",")})`;
 }
 
-type Snapshot = { revision: number; tables: Tables | null };
+type Snapshot = { revision: number; tables: Tables | null; sessionHash: string; member: AuthMember };
+
+export class StatsPermissionError extends Error {
+  constructor() {
+    super("自分以外の選手の成績を変更できるのは管理者だけです。");
+  }
+}
 
 /** One SELECT includes authentication, revision and all requested tables.
  * CASE avoids scanning child tables for unchanged polls / stale writes.
@@ -67,17 +74,27 @@ export async function readSnapshot(
       if (!game) throw new Error("Invalid game key");
       return [game.date, game.number];
     })) : null;
+  const sessionHash = await digest(session);
   const result = await db().prepare(`
-    SELECT r.revision, CASE WHEN ${predicate} THEN ${snapshotSql(scope, partition !== null)} END AS data
-    FROM sessions AS s JOIN app_revisions AS r ON r.scope=?
-    WHERE s.hash=? AND s.expires>?
+    SELECT r.revision, p.id, p.name, p.number, p.is_admin,
+      CASE WHEN ${predicate} THEN ${snapshotSql(scope, partition !== null)} END AS data
+    FROM sessions AS s
+    JOIN member_devices AS d ON d.hash=s.device_hash
+    JOIN players AS p ON p.id=d.player_id AND p.sort_order IS NOT NULL
+    JOIN app_revisions AS r ON r.scope=?
+    WHERE s.hash=? AND (s.expires=0 OR s.expires>?)
   `).bind(
     ...(condition ? [condition.revision] : []),
     ...(partition === null ? [] : tables[scope].map(() => partition)),
-    scope, await digest(session), Date.now(),
-  ).first<{ revision: number; data: string | null }>();
+    scope, sessionHash, Date.now(),
+  ).first<{ revision: number; data: string | null; id: string; name: string; number: string; is_admin: number }>();
   if (!result) return null;
-  return { revision: result.revision, tables: result.data === null ? null : JSON.parse(result.data) as Tables };
+  return {
+    revision: result.revision,
+    tables: result.data === null ? null : JSON.parse(result.data) as Tables,
+    sessionHash,
+    member: { id: result.id, name: result.name, number: result.number, isAdmin: result.is_admin === 1 },
+  };
 }
 
 export function decodeData(scope: DataScope, rows: Tables): ScopeData[DataScope] {
@@ -176,6 +193,22 @@ export async function writeChanges(scope: DataScope, snapshot: Snapshot, next: T
     };
   });
   if (scope === "stats") {
+    if (!snapshot.member.isAdmin) {
+      // Check every changed row before pruning cascading deletes. A removed
+      // game must not silently delete another member's records.
+      const playerId = snapshot.member.id;
+      if (changes.slice(1).some((change) =>
+        [...change.upsert, ...change.remove].some((row) => row[2] !== playerId),
+      )) throw new StatsPermissionError();
+      const ownGames = new Set(
+        [...previous.player_game_stats, ...next.player_game_stats]
+          .filter((row) => row[2] === playerId)
+          .map((row) => JSON.stringify(row.slice(0, 2))),
+      );
+      if ([...changes[0].upsert, ...changes[0].remove].some((row) => !ownGames.has(JSON.stringify(row)))) {
+        throw new StatsPermissionError();
+      }
+    }
     // Parent deletes already cascade through the composite foreign keys.
     // Avoid issuing separate deletes for every descendant table in that case.
     const removedGames = new Set(changes[0].remove.map((key) => JSON.stringify(key)));
@@ -195,8 +228,14 @@ export async function writeChanges(scope: DataScope, snapshot: Snapshot, next: T
   const guard = "EXISTS (SELECT 1 FROM app_revisions WHERE scope=? AND write_token=?)";
   const statements = [database.prepare(`
     UPDATE app_revisions SET revision=revision+1, write_token=?
-    WHERE scope=? AND revision=? RETURNING revision
-  `).bind(writeToken, scope, snapshot.revision)];
+    WHERE scope=? AND revision=? AND EXISTS (
+      SELECT 1 FROM sessions AS s
+      JOIN member_devices AS d ON d.hash=s.device_hash
+      JOIN players AS p ON p.id=d.player_id
+      WHERE s.hash=? AND (s.expires=0 OR s.expires>?)
+        AND p.id=? AND p.sort_order IS NOT NULL AND (p.is_admin=1)=?
+    ) RETURNING revision
+  `).bind(writeToken, scope, snapshot.revision, snapshot.sessionHash, Date.now(), snapshot.member.id, snapshot.member.isAdmin ? 1 : 0)];
 
   for (const { table, upsert } of changes) {
     if (!upsert.length) continue;

@@ -1,6 +1,6 @@
 # baseball-member-app-v3
 
-既存DBを使う場合は [DB正規化の移行手順](docs/database-normalization.md) を確認してください。新しいAPIには `0003_normalize_data.sql` までの適用が必要です。
+既存DBを使う場合は [DB正規化の移行手順](docs/database-normalization.md) と [メンバーログインの適用手順](docs/member-login.md) を確認してください。新しいAPIには `0004_member_devices.sql` までの適用が必要です。`0003` 適用済みのDBには `0004` だけを追加適用します。
 
 ## 🗺️ 今後の画面構成
 
@@ -64,6 +64,7 @@ npx wrangler d1 execute yg_member_db --local --persist-to="./.wrangler/state" --
 npx wrangler d1 execute yg_member_db --local --persist-to="./.wrangler/state" --file="./drizzle/0001_add_equipment_state.sql" --config="./dist/server/wrangler.json"
 npx wrangler d1 execute yg_member_db --local --persist-to="./.wrangler/state" --file="./drizzle/0002_add_stats_state.sql" --config="./dist/server/wrangler.json"
 npx wrangler d1 execute yg_member_db --local --persist-to="./.wrangler/state" --file="./drizzle/0003_normalize_data.sql" --config="./dist/server/wrangler.json"
+npx wrangler d1 execute yg_member_db --local --persist-to="./.wrangler/state" --file="./drizzle/0004_member_devices.sql" --config="./dist/server/wrangler.json"
 ```
 
 ローカルDBは以下に保存されます。

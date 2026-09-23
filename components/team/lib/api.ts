@@ -1,4 +1,5 @@
 import type { TeamData } from "@/lib/model";
+import type { AuthMember } from "@/lib/auth-types";
 
 /** サーバーから返ってくる共通レスポンス */
 export type ApiResponse = {
@@ -8,10 +9,16 @@ export type ApiResponse = {
   authenticated: boolean;
 };
 
+export type TeamLoadResponse = {
+  data: TeamData;
+  revision: number;
+  member: AuthMember;
+};
+
 /** revision を指定したチーム取得だけが返す、変更有無のレスポンス。 */
 export type TeamPollResponse =
-  | { revision: number; unchanged: true }
-  | { revision: number; data: TeamData; unchanged?: false };
+  | { revision: number; unchanged: true; member: AuthMember }
+  | (TeamLoadResponse & { unchanged?: false });
 
 /** HTTP ステータスを持たせたエラー（401 / 409 の分岐に使用） */
 export type ApiError = Error & { status?: number };
@@ -22,7 +29,7 @@ export type ApiError = Error & { status?: number };
  */
 export async function api<T = ApiResponse>(
   path: string,
-  method: "GET" | "POST" | "PUT" | "DELETE" = "GET",
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" = "GET",
   body?: unknown,
 ): Promise<T> {
   const res = await fetch(path, {
