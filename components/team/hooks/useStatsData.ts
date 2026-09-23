@@ -12,7 +12,7 @@ async function statsApi(method = "GET", body?: unknown): Promise<StatsResponse> 
 }
 
 export function useStatsData() {
-  const [data, setData] = useState(initialStatsData);
+  const [data, setData] = useState<StatsData>(initialStatsData());
   const [revision, setRevision] = useState(0);
   const [saveState, setSaveState] = useState<SaveState>("saved");
   const [loading, setLoading] = useState(true);

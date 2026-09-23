@@ -120,11 +120,11 @@ export function OrderPanel({
               | undefined;
             if (
               from?.kind === "player" &&
-              from.key?.startsWith("bench:") &&
+              (from.key?.startsWith("bench:") || from.key?.startsWith("absent:")) &&
               to?.kind === "player" &&
               (to.key === "pitcher" || to.key?.startsWith("slot:"))
             ) {
-              const playerId = from.key.slice(6);
+              const playerId = from.key.slice(from.key.indexOf(":") + 1);
               if (data.players.find((p) => p.id === playerId)?.number === "11") {
                 setWarningPlayerId(playerId);
               }
