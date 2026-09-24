@@ -1,0 +1,18 @@
+{
+  "name": "yg-weekly-equipment-line",
+  "main": "index.ts",
+  "compatibility_date": "2026-05-15",
+  "compatibility_flags": ["nodejs_compat"],
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "yg_member_db",
+      "database_id": "673361f5-0bdc-4968-aea1-21970ca8b010"
+    }
+  ],
+
+  "triggers": {
+    "crons": ["0 3 * * FRI"]
+  }
+}

@@ -45,5 +45,6 @@ next-env.d.ts
 /outputs/
 /work/
 
+.dev.vars
 .dev.vars*
 !.env.example
