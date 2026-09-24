@@ -1,16 +1,7 @@
 "use client";
 import { useState } from "react";
 import { DndContext, closestCenter } from "@dnd-kit/core";
-import { AlertTriangle, GripVertical } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { GripVertical } from "lucide-react";
 import { changeMode, type Player, type TeamData } from "@/lib/model";
 import { useLineupSensors } from "../hooks/useLineupSensors";
 import { countActive, dragEndUpdater } from "../lib/lineup-actions";
@@ -18,6 +9,29 @@ import { AbsentSection } from "./AbsentSection";
 import { BenchSection } from "./BenchSection";
 import { LineupRow } from "./LineupRow";
 import { PitcherRow } from "./PitcherRow";
+import { GotoMoveDialog, type GotoMoveDestination } from "./GotoMoveDialog";
+
+type PendingMove = {
+  source: TeamData;
+  destination: GotoMoveDestination;
+  updater: (data: TeamData) => TeamData;
+};
+
+function playerDestination(data: TeamData, playerId: string): GotoMoveDestination {
+  if (data.absentIds.includes(playerId)) return "absent";
+  if (data.slots.some((slot) => slot.playerId === playerId) ||
+    (data.mode === "dh" && data.pitcher === playerId)) return "starter";
+  return "bench";
+}
+
+// A drag records slot keys, so do not replay it against a different lineup
+// if a remote update arrives while the confirmation is open.
+function movementKey(data: TeamData) {
+  return JSON.stringify([
+    data.mode, data.slots, data.pitcher, data.benchOrder, data.absentIds,
+    data.players.map((player) => [player.id, player.number]),
+  ]);
+}
 
 /**
  * オーダー編集の本体。DndContext はここに 1 つだけ置きます。
@@ -50,11 +64,17 @@ export function OrderPanel({
   const activeCount = countActive(data);
   const capacity = data.mode === "dh" ? 10 : 9;
   const pitcher = data.players.find((p) => p.id === data.pitcher);
-  const [warningPlayerId, setWarningPlayerId] = useState<string | null>(null);
-  const warningPlayer = warningPlayerId
-    ? data.players.find((p) => p.id === warningPlayerId)
-    : undefined;
-  const warningOpen = Boolean(warningPlayer);
+  const [pendingMove, setPendingMove] = useState<PendingMove | null>(null);
+  const warningOpen = pendingMove !== null && pendingMove.source === data;
+
+  function confirmMove() {
+    const move = pendingMove;
+    setPendingMove(null);
+    if (!move || move.source !== data) return;
+    edit((current) => movementKey(current) === movementKey(move.source)
+      ? move.updater(current)
+      : current);
+  }
 
   return (
     <section className="order-panel">
@@ -78,58 +98,32 @@ export function OrderPanel({
         打順・選手・守備はドラッグで入れ替え
       </p>
 
-      <AlertDialog
+      <GotoMoveDialog
         open={warningOpen}
-        onOpenChange={(open) => {
-          if (!open) setWarningPlayerId(null);
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <div className="mb-2 inline-flex size-12 items-center justify-center rounded-full bg-amber-100 text-amber-600">
-              <AlertTriangle className="size-5" />
-            </div>
-            <AlertDialogTitle>注意</AlertDialogTitle>
-            <AlertDialogDescription>
-              スターティングオーダーに{warningPlayer ? `${warningPlayer.name}` : ""}がいます。<br />
-              本当によろしいでしょうか？
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogAction
-              onClick={() => setWarningPlayerId(null)}
-            >
-              確認
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        destination={pendingMove?.destination ?? "starter"}
+        onConfirm={confirmMove}
+        onCancel={() => setPendingMove(null)}
+      />
 
       <DndContext
         sensors={sensors}
         onDragEnd={(event) => {
           const updater = dragEndUpdater(event);
-          if (updater) {
-            edit(updater);
-
-            const from = event.active.data.current as
-              | { kind?: string; key?: string }
-              | undefined;
-            const to = event.over?.data.current as
-              | { kind?: string; key?: string }
-              | undefined;
-            if (
-              from?.kind === "player" &&
-              (from.key?.startsWith("bench:") || from.key?.startsWith("absent:")) &&
-              to?.kind === "player" &&
-              (to.key === "pitcher" || to.key?.startsWith("slot:"))
-            ) {
-              const playerId = from.key.slice(from.key.indexOf(":") + 1);
-              if (data.players.find((p) => p.id === playerId)?.number === "11") {
-                setWarningPlayerId(playerId);
-              }
-            }
+          if (!updater) return;
+          const next = updater(structuredClone(data));
+          const warningPlayer = data.players.find((player) =>
+            player.number === "11" &&
+            playerDestination(data, player.id) !== playerDestination(next, player.id),
+          );
+          if (warningPlayer) {
+            setPendingMove({
+              source: data,
+              destination: playerDestination(next, warningPlayer.id),
+              updater,
+            });
+            return;
           }
+          edit(updater);
         }}
         collisionDetection={(args) =>
           closestCenter({

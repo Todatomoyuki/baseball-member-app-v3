@@ -1,5 +1,6 @@
 "use client";
-import { ClipboardList, Users } from "lucide-react";
+import Link from "next/link";
+import { ClipboardList, Sparkles, Users } from "lucide-react";
 import { Modal } from "../common/Modal";
 
 /**
@@ -35,11 +36,11 @@ export function AppMenuModal({
           <small></small>
         </button>
 
-        <button className="app-launcher-item" aria-disabled>
-          <Users size={26} />
+        <Link href="/goto" className="app-launcher-item" onClick={onClose}>
+          <Sparkles size={26} aria-hidden="true" />
           <strong>後藤君のありがたいお話</strong>
-          <small></small>
-        </button>
+          <small>人生に、ときどき後藤を。</small>
+        </Link>
       </div>
     </Modal>
   );

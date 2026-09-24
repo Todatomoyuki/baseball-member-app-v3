@@ -19,6 +19,7 @@ import { ChevronDown, GripVertical } from "lucide-react";
 
 import type { Player } from "@/lib/model";
 import type { SaveState } from "../types";
+import { GotoMoveDialog } from "../lineup/GotoMoveDialog";
 
 import { LoadingState } from "../common/LoadingState";
 import { useEquipmentData } from "../hooks/useEquipmentData";
@@ -174,8 +175,31 @@ function EmptyEquipmentMember({ player }: { player: Player }) {
    メイン
 ========================================================= */
 
-export function EquipmentView({ players, appNavigation, onSaveStateChange }: Props) {
+export function EquipmentView({
+  players,
+  appNavigation,
+  onSaveStateChange,
+}: Props) {
   const equipment = useEquipmentData();
+  const [pendingGotoEquipment, setPendingGotoEquipment] = useState<{
+    equipmentId: string;
+    playerId: string;
+  } | null>(null);
+
+  function moveEquipment(equipmentId: string, playerId: string) {
+    equipment.edit((current) => ({
+      ...current,
+
+      items: current.items.map((item) =>
+        item.id === equipmentId
+          ? {
+              ...item,
+              holderId: playerId,
+            }
+          : item,
+      ),
+    }));
+  }
 
   useEffect(() => {
     onSaveStateChange?.(equipment.saveState);
@@ -238,18 +262,19 @@ export function EquipmentView({ players, appNavigation, onSaveStateChange }: Pro
 
     if (!equipmentId || !playerId) return;
 
-    equipment.edit((current) => ({
-      ...current,
+    const destinationPlayer = players.find((player) => player.id === playerId);
 
-      items: current.items.map((item) =>
-        item.id === equipmentId
-          ? {
-              ...item,
-              holderId: playerId,
-            }
-          : item,
-      ),
-    }));
+    // 背番号11 = 後藤
+    if (destinationPlayer?.number === "11") {
+      setPendingGotoEquipment({
+        equipmentId,
+        playerId,
+      });
+
+      return;
+    }
+
+    moveEquipment(equipmentId, playerId);
   }
 
   /* -------------------------
@@ -291,52 +316,63 @@ export function EquipmentView({ players, appNavigation, onSaveStateChange }: Pro
       {appNavigation}
 
       <section className="panel">
-          <div className="section-title">
-            <span>道具担当</span>
+        <div className="section-title">
+          <span>道具担当</span>
 
-            <span>{equipment.data.items.length}点</span>
+          <span>{equipment.data.items.length}点</span>
+        </div>
+
+        <p className="drag-help">
+          <GripVertical size={14} />
+          道具をつかんで担当者へ移動
+        </p>
+
+        <GotoMoveDialog
+          open={pendingGotoEquipment !== null}
+          destination="equipment"
+          onConfirm={() => {
+            const pending = pendingGotoEquipment;
+
+            setPendingGotoEquipment(null);
+
+            if (!pending) return;
+
+            moveEquipment(pending.equipmentId, pending.playerId);
+          }}
+          onCancel={() => setPendingGotoEquipment(null)}
+        />
+
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={dragEnd}
+        >
+          {/* 道具を持っている人 */}
+
+          <div className="equipment-member-list">
+            {holders.map(({ player, items }) => (
+              <EquipmentMember key={player.id} player={player} items={items} />
+            ))}
           </div>
 
-          <p className="drag-help">
-            <GripVertical size={14} />
-            道具をつかんで担当者へ移動
+          {/* 道具なし */}
+
+          <div className="section-title absent-title">
+            <span>道具なしメンバー</span>
+
+            <span>{noEquipmentMembers.length}人</span>
+          </div>
+
+          <p className="equipment-drop-help">
+            道具を渡したい選手へ そのままドロップ
           </p>
 
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={dragEnd}
-          >
-            {/* 道具を持っている人 */}
-
-            <div className="equipment-member-list">
-              {holders.map(({ player, items }) => (
-                <EquipmentMember
-                  key={player.id}
-                  player={player}
-                  items={items}
-                />
-              ))}
-            </div>
-
-            {/* 道具なし */}
-
-            <div className="section-title absent-title">
-              <span>道具なしメンバー</span>
-
-              <span>{noEquipmentMembers.length}人</span>
-            </div>
-
-            <p className="equipment-drop-help">
-              道具を渡したい選手へ そのままドロップ
-            </p>
-
-            <div className="equipment-empty-members">
-              {noEquipmentMembers.map(({ player }) => (
-                <EmptyEquipmentMember key={player.id} player={player} />
-              ))}
-            </div>
-          </DndContext>
+          <div className="equipment-empty-members">
+            {noEquipmentMembers.map(({ player }) => (
+              <EmptyEquipmentMember key={player.id} player={player} />
+            ))}
+          </div>
+        </DndContext>
       </section>
     </>
   );

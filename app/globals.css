@@ -2449,3 +2449,36 @@ footer {
     transform: rotate(360deg);
   }
 }
+
+.stats-register-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 32px;
+  z-index: 9999;
+
+  padding: 12px 20px;
+  border-radius: 999px;
+
+  background: #438f6e;
+  color: white;
+
+  font-weight: 700;
+  font-size: 14px;
+
+  box-shadow: 0 12px 30px #115b3b;
+
+  transform: translateX(-50%);
+  animation: stats-toast-in 0.25s ease-out;
+}
+
+@keyframes stats-toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
