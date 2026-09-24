@@ -1,0 +1,37 @@
+@media (max-width: 760px) {
+  .team-dialog {
+    top: var(--dialog-top, 0px);
+    left: 0;
+    transform: none;
+    width: 100%;
+    height: var(--dialog-height, 100dvh);
+    max-height: var(--dialog-height, 100dvh);
+    border: 0;
+    border-radius: 0;
+  }
+  .team-dialog-header {
+    padding: calc(env(safe-area-inset-top) + 14px) 68px 14px 18px;
+  }
+  .team-dialog-close {
+    top: calc(env(safe-area-inset-top) + 12px);
+    right: 14px;
+  }
+  .team-dialog-body {
+    padding: 16px 18px calc(env(safe-area-inset-bottom) + 20px);
+  }
+  .team-dialog-body [data-slot="command-input-wrapper"] {
+    top: -16px;
+  }
+  .team-dialog-body .form-two {
+    grid-template-columns: 80px minmax(0, 1fr);
+    gap: 12px;
+  }
+  .team-dialog-body .move-actions {
+    gap: 8px;
+  }
+  .team-dialog-body .move-actions button {
+    flex: 1;
+    min-width: 0;
+    padding: 10px 6px;
+  }
+}

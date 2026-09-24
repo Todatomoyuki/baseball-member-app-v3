@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { SYMBOL_COUNT, symbolImagePath } from "./pachinko-game";
 
-const TOTAL = 9 as const;
+const TOTAL = SYMBOL_COUNT;
 const CONCURRENCY = 3;
 const LOAD_TIMEOUT = 45_000;
 type AssetStatus = "pending" | "loaded" | "failed";
@@ -61,7 +62,7 @@ export function usePachinkoAssets() {
         image.onload = () => finish(image.naturalWidth > 0);
         image.onerror = () => finish(false);
         pending.set(image, setTimeout(() => finish(false), LOAD_TIMEOUT));
-        image.src = `/pachi/${id}.png`;
+        image.src = symbolImagePath(id);
       }
     }
 

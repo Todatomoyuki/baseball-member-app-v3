@@ -1,4 +1,10 @@
-export type SymbolId = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+export const SYMBOL_IDS = [1, 2, 3, 4, 5, 6, 7, 8, 9] as const;
+export type SymbolId = (typeof SYMBOL_IDS)[number];
+export const SYMBOL_COUNT = SYMBOL_IDS.length;
+
+export function symbolImagePath(symbol: number): string {
+  return `/pachi/${symbol}.png`;
+}
 export type Heat = "normal" | "chance" | "hot";
 export type Phase =
   | "idle"
@@ -50,6 +56,13 @@ export const START_ENTRY_RATE = 0.8;
 
 export const HOLD_CAPACITY = 4;
 export const MAX_BALLS_IN_FLIGHT = 4;
+export const BONUS_ROUNDS = 3;
+export const HOT_HOLD_RATE = 0.3;
+export const HEAT_SETTINGS = {
+  normal: { jackpotMultiplier: 1, superReachBonus: 0 },
+  chance: { jackpotMultiplier: 1.7, superReachBonus: 0.15 },
+  hot: { jackpotMultiplier: 2.7, superReachBonus: 0.3 },
+} as const satisfies Record<Heat, { jackpotMultiplier: number; superReachBonus: number }>;
 
 export const TIMINGS = {
   launchCooldown: 450,
@@ -89,20 +102,20 @@ export interface GamePlan {
 }
 
 export function randomSymbol(random: () => number = Math.random): SymbolId {
-  return (Math.floor(random() * 9) + 1) as SymbolId;
+  return (Math.floor(random() * SYMBOL_COUNT) + 1) as SymbolId;
 }
 
 export function neighborSymbol(symbol: SymbolId, direction: -1 | 1): SymbolId {
-  return (((symbol - 1 + direction + 9) % 9) + 1) as SymbolId;
+  return (((symbol - 1 + direction + SYMBOL_COUNT) % SYMBOL_COUNT) + 1) as SymbolId;
 }
 
 export function chooseHeat(random: () => number = Math.random): Heat {
   if (random() >= CHANCE_UP_RATE) return "normal";
-  return random() < 0.3 ? "hot" : "chance";
+  return random() < HOT_HOLD_RATE ? "hot" : "chance";
 }
 
 export function jackpotRate(heat: Heat): number {
-  const multiplier = heat === "hot" ? 2.7 : heat === "chance" ? 1.7 : 1;
+  const multiplier = HEAT_SETTINGS[heat].jackpotMultiplier;
   return Math.min(1, JACKPOT_RATE * multiplier);
 }
 
@@ -113,14 +126,14 @@ export function createGamePlan(
 ): GamePlan {
   const win = random() < jackpotRate(heat);
   const reach = win || random() < REACH_RATE;
-  const heatBonus = heat === "hot" ? 0.3 : heat === "chance" ? 0.15 : 0;
+  const heatBonus = HEAT_SETTINGS[heat].superReachBonus;
   const revival = win && random() < REVIVAL_RATE;
   const superReach = reach && (revival || random() < SUPER_REACH_RATE + heatBonus);
   const left = randomSymbol(random);
   // Non-reach sides always differ, including across the 9 -> 1 boundary.
   const right = reach
     ? left
-    : ((((left - 1 + 1 + Math.floor(random() * 8)) % 9) + 1) as SymbolId);
+    : ((((left + Math.floor(random() * (SYMBOL_COUNT - 1))) % SYMBOL_COUNT) + 1) as SymbolId);
   const missedCenter = reach
     ? neighborSymbol(left, random() < 0.5 ? -1 : 1)
     : randomSymbol(random);

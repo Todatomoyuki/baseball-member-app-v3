@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+import { getReducedMotion, useReducedMotion } from "@/hooks/use-reduced-motion";
 
 import { gotoQuotes, type GotoQuote } from "./goto-quotes";
 
@@ -20,34 +22,18 @@ type WisdomScene = {
   round: number;
 };
 
-const motionQuery = "(prefers-reduced-motion: reduce)";
+// All durations are milliseconds; changing motion preference never restarts a quote.
+const SCENE_TIMINGS = {
+  readingMinimum: 2500,
+  readingMaximum: 4400,
+  perCharacter: 110,
+  focus: 650,
+  normal: { signature: 1800, reveal: 350, silence: 1150, thinking: 800 },
+  reduced: { signature: 1400, reveal: 100, silence: 600, thinking: 400 },
+} as const;
 
-function getReducedMotion() {
-  return (
-    typeof window !== "undefined" &&
-    typeof window.matchMedia === "function" &&
-    window.matchMedia(motionQuery).matches
-  );
-}
-
-function subscribeToMotion(onChange: () => void) {
-  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
-    return () => {};
-  }
-
-  const query = window.matchMedia(motionQuery);
-
-  if (typeof query.addEventListener === "function") {
-    query.addEventListener("change", onChange);
-    return () => query.removeEventListener("change", onChange);
-  }
-
-  query.addListener(onChange);
-  return () => query.removeListener(onChange);
-}
-
-function getServerMotion() {
-  return false;
+function motionTimings() {
+  return getReducedMotion() ? SCENE_TIMINGS.reduced : SCENE_TIMINGS.normal;
 }
 
 function shuffleQuotes(previousId?: string) {
@@ -69,15 +55,14 @@ function shuffleQuotes(previousId?: string) {
 
 function readingDelay(line: string) {
   const length = Array.from(line).length;
-  return Math.min(4400, Math.max(2500, length * 110));
+  return Math.min(
+    SCENE_TIMINGS.readingMaximum,
+    Math.max(SCENE_TIMINGS.readingMinimum, length * SCENE_TIMINGS.perCharacter),
+  );
 }
 
 export function useWisdomScene() {
-  const reducedMotion = useSyncExternalStore(
-    subscribeToMotion,
-    getReducedMotion,
-    getServerMotion,
-  );
+  const reducedMotion = useReducedMotion();
   const [scene, setScene] = useState<WisdomScene>({
     phase: "idle",
     quote: null,
@@ -164,7 +149,7 @@ export function useWisdomScene() {
       updateScene({ phase: "signature" });
       schedule(
         () => updateScene({ phase: "complete" }),
-        getReducedMotion() ? 1400 : 1800,
+        motionTimings().signature,
       );
     }
 
@@ -182,25 +167,25 @@ export function useWisdomScene() {
 
     function reveal() {
       updateScene({ phase: "reveal", silence: false });
-      schedule(revealLine, getReducedMotion() ? 100 : 350);
+      schedule(revealLine, motionTimings().reveal);
     }
 
     function pause() {
       updateScene({ silence: true });
-      schedule(reveal, getReducedMotion() ? 600 : 1150);
+      schedule(reveal, motionTimings().silence);
     }
 
     function think() {
       updateScene({ phase: "thinking" });
-      schedule(pause, getReducedMotion() ? 400 : 800);
+      schedule(pause, motionTimings().thinking);
     }
 
     // Read the motion preference at each stage so changes affect the remaining
     // sequence without restarting the quote or replaying visible lines.
     if (sceneRef.current.phase === "thinking") {
-      schedule(pause, getReducedMotion() ? 400 : 800);
+      schedule(pause, motionTimings().thinking);
     } else {
-      schedule(think, getReducedMotion() ? 0 : 650);
+      schedule(think, getReducedMotion() ? 0 : SCENE_TIMINGS.focus);
     }
 
     return () => {

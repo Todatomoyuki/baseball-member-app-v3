@@ -3,26 +3,18 @@ var __name = (target, value) => __defProp(target, "name", { value, configurable:
 
 // index.ts
 var index_default = {
-  async scheduled(_controller, env, _ctx) {
-    const [equipmentRow, teamRow] = await Promise.all([
-      env.DB.prepare(
-        "SELECT data FROM equipment_state WHERE id = 1"
-      ).first(),
-      env.DB.prepare("SELECT data FROM team_state WHERE id = 1").first()
-    ]);
-    if (!equipmentRow || !teamRow) {
-      console.error("equipment_state \u307E\u305F\u306F team_state \u304C\u898B\u3064\u304B\u308A\u307E\u305B\u3093");
-      return;
-    }
-    const equipmentData = JSON.parse(equipmentRow.data);
-    const teamData = JSON.parse(teamRow.data);
-    const playerMap = new Map(
-      teamData.players.map((player) => [player.id, player.name])
+  async scheduled(_controller, env) {
+    const { results: assignments } = await env.DB.prepare(`
+            SELECT e.name AS equipment_name, p.name AS player_name
+            FROM equipment_items AS e
+            LEFT JOIN players AS p
+                ON p.id = e.holder_id AND p.sort_order IS NOT NULL
+            WHERE e.holder_id IS NOT NULL
+            ORDER BY e.sort_order, e.id
+        `).all();
+    const lines = assignments.map(
+      ({ player_name, equipment_name }) => `${player_name ?? "\u4E0D\u660E\u306A\u9078\u624B"} \uFF1A ${equipment_name}`
     );
-    const lines = equipmentData.items.filter((item) => item.holderId).map((item) => {
-      const playerName = playerMap.get(item.holderId) ?? "\u4E0D\u660E\u306A\u9078\u624B";
-      return `${playerName} \uFF1A ${item.name}`;
-    });
     const message = [
       "\u26BE\uFE0F \u4ECA\u9031\u306E\u9053\u5177\u62C5\u5F53\u8005\u4E00\u89A7:\uFF08\u8A66\u5408\u304C\u7121\u3044\u9031\u3082\u6BCE\u9031\u91D1\u66DC\u65E5\u306B\u9001\u4FE1\u3055\u308C\u307E\u3059\uFF09",
       "",

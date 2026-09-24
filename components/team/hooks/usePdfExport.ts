@@ -60,5 +60,3 @@ export function usePdfExport(data: TeamData, onError: (message: string) => void)
 
   return { busy, url, name, warnings, create, dismissWarnings, closePreview, clear };
 }
-
-export type PdfExport = ReturnType<typeof usePdfExport>;

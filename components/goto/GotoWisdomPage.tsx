@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState, type MouseEvent, type PointerEvent } from "react";
-import Link from "next/link";
 import { ArrowLeft, ArrowUpRight, MoveUpRight, Sparkles } from "lucide-react";
 import { useWisdomScene } from "./useWisdomScene";
 import styles from "./GotoWisdomPage.module.css";
@@ -100,6 +99,8 @@ export function GotoWisdomPage() {
       </div>
 
       <header className={styles.header}>
+        {/* Full navigation preserves the existing team-app reload on return. */}
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
         <a href="/" className={styles.back} aria-label="チームのページへ戻る">
           <ArrowLeft size={15} strokeWidth={1.3} aria-hidden="true" />
           <span>YG TEAM</span>

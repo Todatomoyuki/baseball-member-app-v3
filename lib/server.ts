@@ -74,9 +74,6 @@ export async function verifyPassword(password: string): Promise<PasswordProof | 
         await digest(env.TEAM_BOOTSTRAP_PASSWORD),
     ) ? { salt: null, hash: null } : null;
 }
-export async function checkPassword(password: string) {
-    return !!(await verifyPassword(password));
-}
 // Browsers cap persistent cookies. Renew on authenticated responses without
 // writing an expiry extension to D1; linked sessions have expires=0.
 const ttl = 60 * 60 * 24 * 400;
@@ -151,9 +148,6 @@ export async function getSession(req: Request): Promise<AuthSession | null> {
             isAdmin: row.is_admin === 1,
         },
     };
-}
-export async function authorized(req: Request) {
-    return !!(await getSession(req))?.member;
 }
 // Call only after validating a linked session (including readSnapshot's auth).
 export function renewSessionHeaders(req: Request) {

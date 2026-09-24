@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { AuthMember } from "@/lib/auth-types";
 import type { Player } from "@/lib/model";
 import {
@@ -16,6 +16,8 @@ import {
 import { useStatsData } from "../hooks/useStatsData";
 import type { SaveState } from "../types";
 import { LoadingState } from "../common/LoadingState";
+import { StatsValues } from "./StatsValues";
+import { isHitResult } from "./stats-summary";
 
 const NUMBER_FIELDS = [
   ["rbis", "打点"],
@@ -25,147 +27,11 @@ const NUMBER_FIELDS = [
   ["errors", "失策"],
   ["caughtStealing", "盗塁阻止"],
 ] as const;
-const SAVE_LABELS: Record<string, string> = {
-  saved: "保存済み",
-  dirty: "変更あり",
-  saving: "保存中…",
-  error: "保存エラー",
-  conflict: "競合あり",
-};
 const CONFIRMATION_PAGE_SIZE = 5;
 const GAME_NUMBERS = [1, 2, 3] as const;
 const STAT_NUMBER_OPTIONS = Array.from({ length: 11 }, (_, index) => index);
 const RBIS_NUMBER_OPTIONS = Array.from({ length: 21 }, (_, index) => index);
-
-const SUMMARY_FIRST_ROW = [
-  ["plateAppearances", "打席"],
-  ["atBats", "打数"],
-  ["hits", "安打"],
-  ["homeRuns", "本塁打"],
-  ["rbis", "打点"],
-  ["runs", "得点"],
-  ["stolenBases", "盗塁"],
-  ["doubles", "二塁打"],
-  ["triples", "三塁打"],
-  ["scoringAtBats", "得点圏打数"],
-  ["scoringHits", "得点圏安打"],
-] as const;
-const SUMMARY_SECOND_ROW = [
-  ["strikeouts", "三振"],
-  ["walks", "四球"],
-  ["hitByPitches", "死球"],
-  ["sacrificeBunts", "犠打"],
-  ["sacrificeFlies", "犠飛"],
-  ["doublePlays", "併殺打"],
-  ["opponentErrors", "敵失"],
-  ["errors", "失策"],
-  ["caughtStealingAttempts", "盗塁死"],
-  ["caughtStealing", "盗塁阻止"],
-] as const;
-
-type SummaryValues = Record<
-  | (typeof SUMMARY_FIRST_ROW)[number][0]
-  | (typeof SUMMARY_SECOND_ROW)[number][0],
-  number
->;
-
-function summarizeStats(values: PlayerStats): SummaryValues {
-  const results = values.plateAppearances;
-  const completed = results.filter(
-    (result): result is PlateAppearanceResult => result !== null,
-  );
-  const hits = ["安打", "二塁打", "三塁打", "本塁打"];
-  const isHit = (result: PlateAppearanceResult) => hits.includes(result);
-  const scoringResults = completed.filter(
-    (_, index) => values.scoringPosition[index] === true,
-  );
-  const count = (result: PlateAppearanceResult, source = completed) =>
-    source.filter((item) => item === result).length;
-  const atBats = completed.filter(
-    (result) =>
-      !["四球", "死球", "エンドラン", "犠打", "犠飛"].includes(result),
-  ).length;
-  return {
-    plateAppearances: completed.length,
-    atBats,
-    hits: completed.filter(isHit).length,
-    homeRuns: count("本塁打"),
-    rbis: values.rbis,
-    runs: values.runs,
-    stolenBases: values.stolenBases,
-    doubles: count("二塁打"),
-    triples: count("三塁打"),
-    scoringAtBats: scoringResults.filter(
-      (result) =>
-        !["四球", "死球", "エンドラン", "犠打", "犠飛"].includes(result),
-    ).length,
-    scoringHits: scoringResults.filter(isHit).length,
-    strikeouts: count("三振"),
-    walks: count("四球"),
-    hitByPitches: count("死球"),
-    sacrificeBunts: count("犠打"),
-    sacrificeFlies: count("犠飛"),
-    doublePlays: count("併殺打"),
-    opponentErrors: count("敵失"),
-    errors: values.errors,
-    caughtStealingAttempts: values.caughtStealingAttempts,
-    caughtStealing: values.caughtStealing,
-  };
-}
-
-function StatsValues({
-  player,
-  values,
-  canEdit,
-  onEdit,
-  onDelete,
-}: {
-  player: Player;
-  values: PlayerStats;
-  canEdit: boolean;
-  onEdit: () => void;
-  onDelete: () => void;
-}) {
-  const summary = summarizeStats(values);
-  const renderSummary = (fields: readonly (readonly [string, string])[]) =>
-    fields.map(([field, label]) => (
-      <span key={field}>
-        <small>{label}</small>
-        <strong>{summary[field as keyof SummaryValues]}</strong>
-      </span>
-    ));
-  return (
-    <div className="stats-confirm-player">
-      <div className="stats-confirm-player-name">
-        <strong>{player.name}</strong>
-        <small>#{player.number}</small>
-      </div>
-      <div className="stats-confirm-summary">
-        <div className="stats-summary-row first">
-          {renderSummary(SUMMARY_FIRST_ROW)}
-        </div>
-        <div className="stats-summary-row second">
-          {renderSummary(SUMMARY_SECOND_ROW)}
-          <span className="stats-summary-empty" aria-hidden="true" />
-        </div>
-      </div>
-      {canEdit && (
-        <div className="stats-confirm-actions">
-          <button type="button" className="stats-edit-button" onClick={onEdit}>
-            編集
-          </button>
-          <button
-            type="button"
-            className="stats-delete-button"
-            onClick={onDelete}
-          >
-            削除
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
+const REGISTRATION_MESSAGE_MS = 1800;
 
 export function StatsView({
   players,
@@ -179,6 +45,7 @@ export function StatsView({
   onSaveStateChange?: (state: SaveState) => void;
 }) {
   const [registered, setRegistered] = useState(false);
+  const registrationTimers = useRef(new Set<number>());
   const stats = useStatsData();
   const [selectedPlayerId, setSelectedPlayerId] = useState(member.id);
   const [selectedDate, setSelectedDate] = useState(todayLocalDate);
@@ -189,20 +56,16 @@ export function StatsView({
   const [entryReset, setEntryReset] = useState(false);
 
   useEffect(() => {
-    onSaveStateChange?.(stats.saveState);
-  }, [stats.saveState, onSaveStateChange]);
+    const timers = registrationTimers.current;
+    return () => {
+      timers.forEach(window.clearTimeout);
+      timers.clear();
+    };
+  }, []);
 
   useEffect(() => {
-    const hitResults = new Set(["安打", "二塁打", "三塁打", "本塁打"]);
-    document
-      .querySelectorAll<HTMLButtonElement>(".plate-square")
-      .forEach((button) => {
-        button.classList.toggle(
-          "hit-result",
-          hitResults.has(button.querySelector("strong")?.textContent ?? ""),
-        );
-      });
-  }, [selectedPlayerId, selectedDate, selectedGameNumber, stats.data]);
+    onSaveStateChange?.(stats.saveState);
+  }, [stats.saveState, onSaveStateChange]);
 
   useEffect(() => {
     if (openPlate === null) return;
@@ -354,9 +217,11 @@ export function StatsView({
 
     setRegistered(true);
 
-    window.setTimeout(() => {
+    const timer = window.setTimeout(() => {
+      registrationTimers.current.delete(timer);
       setRegistered(false);
-    }, 1800);
+    }, REGISTRATION_MESSAGE_MS);
+    registrationTimers.current.add(timer);
   };
   const resetEntry = () => {
     if (!selectedPlayer || !canEditPlayer(selectedPlayer.id)) return;
@@ -570,7 +435,7 @@ export function StatsView({
                     >
                       <button
                         type="button"
-                        className={`plate-square ${result ? "filled" : ""}`}
+                        className={`plate-square ${result ? "filled" : ""}${isHitResult(result) ? " hit-result" : ""}`}
                         onClick={() =>
                           setOpenPlate(openPlate === index ? null : index)
                         }

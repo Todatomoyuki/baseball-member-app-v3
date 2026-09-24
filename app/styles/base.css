@@ -1,0 +1,68 @@
+:root {
+  --background: #f1f5f9;
+  --foreground: #16283e;
+  --primary: #0876c9;
+  --primary-foreground: #fff;
+  --card: #fff;
+  --border: #dbe5ee;
+  --muted: #eaf0f6;
+  --muted-foreground: #617488;
+  --radius: 0.75rem;
+  color-scheme: light;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: "Noto Sans JP", "Yu Gothic", Meiryo, system-ui, sans-serif;
+  font-size: 16px;
+}
+button,
+input,
+select {
+  font: inherit;
+}
+button,
+a,
+input,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+button {
+  cursor: pointer;
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+a {
+  color: inherit;
+  text-decoration: none;
+}
+button {
+  border: 0;
+}
+input,
+select {
+  width: 100%;
+  height: 46px;
+  border: 1px solid #d5e0e9;
+  border-radius: 8px;
+  padding: 0 12px;
+  background: #fff;
+  color: var(--foreground);
+  min-width: 0;
+}
+input:focus,
+select:focus {
+  outline: 3px solid #a9d7fc;
+  outline-offset: 1px;
+}
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid #299aec;
+  outline-offset: 3px;
+}

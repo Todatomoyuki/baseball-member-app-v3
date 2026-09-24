@@ -179,5 +179,3 @@ export function BaseballShow({ phase, heat, isSeven, revived, bonusRound }: Base
     </div>
   );
 }
-
-export default BaseballShow;

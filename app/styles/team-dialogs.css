@@ -1,0 +1,218 @@
+/* One scrollable body keeps every dialog usable with the phone keyboard open. */
+.team-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: #10243780;
+}
+.team-dialog {
+  position: fixed;
+  z-index: 101;
+  top: calc(var(--dialog-top, 0px) + var(--dialog-height, 100dvh) / 2);
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  width: min(480px, calc(100vw - 32px));
+  max-height: calc(var(--dialog-height, 100dvh) - 32px);
+  min-width: 0;
+  overflow: hidden;
+  background: #fff;
+  color: #16283e;
+  border: 1px solid #dbe5ed;
+  border-radius: 14px;
+  box-shadow: 0 20px 65px #00142933;
+  outline: none;
+}
+.team-dialog-header {
+  flex: none;
+  padding: 22px 64px 16px 22px;
+  border-bottom: 1px solid #e3ebf1;
+}
+.team-dialog-header .modal-title {
+  margin: 0 0 8px;
+  line-height: 1.5;
+  outline: none;
+  overflow-wrap: anywhere;
+}
+.team-dialog-header .modal-description {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.team-dialog-close {
+  position: absolute;
+  top: 14px;
+  right: 12px;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 10px;
+  border-radius: 9px;
+  background: #edf3f8;
+  color: #3b5870;
+  touch-action: manipulation;
+}
+.team-dialog-close svg {
+  width: 22px;
+  height: 22px;
+}
+.team-dialog-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 20px 22px;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scroll-padding: 16px;
+}
+.team-dialog-body > * {
+  min-width: 0;
+  max-width: 100%;
+}
+.team-dialog-body label {
+  font-size: 14px;
+}
+.team-dialog-body input {
+  height: 46px;
+  min-height: 46px;
+  max-width: 100%;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.team-dialog-body [cmdk-root] {
+  height: auto;
+  overflow: visible;
+}
+.team-dialog-body [data-slot="command-input-wrapper"] {
+  position: sticky;
+  top: -20px;
+  z-index: 1;
+  min-height: 54px;
+  background: #fff;
+  border-bottom: 1px solid #dbe5ed;
+}
+.team-dialog-body [cmdk-input] {
+  border: 0;
+  box-shadow: none;
+  outline: none;
+}
+.team-dialog-body [cmdk-list],
+.team-dialog-body .picker-list {
+  max-height: none;
+  overflow: visible;
+  margin: 8px 0;
+}
+.team-dialog-body [cmdk-item] {
+  min-height: 48px;
+  padding: 12px 8px;
+  cursor: pointer;
+  border-radius: 6px;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.team-dialog-body [cmdk-item] > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.team-dialog-body [cmdk-item] small {
+  color: #73899b;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.team-dialog-body [cmdk-item][data-selected="true"] {
+  background: #eaf4fc;
+}
+.team-dialog-body .picker-body {
+  overflow: visible;
+}
+.team-dialog-body .picker-body > input {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #fff;
+}
+.team-dialog-body .picker-list button {
+  min-height: 48px;
+  overflow-wrap: anywhere;
+}
+.team-dialog-body > a {
+  margin-bottom: 12px;
+}
+.team-dialog-body .position-grid .position {
+  height: 46px;
+}
+.match-fields,
+.match-fields label {
+  min-width: 0;
+  max-width: 100%;
+}
+.match-fields input[type="date"] {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-inline-size: 0;
+  box-sizing: border-box;
+  -webkit-appearance: none;
+  appearance: none;
+  overflow: hidden;
+  font-size: 16px;
+}
+.match-fields input[type="date"]::-webkit-date-and-time-value {
+  text-align: left;
+  min-width: 0;
+}
+.match-fields input[type="date"]::-webkit-datetime-edit {
+  min-width: 0;
+  padding: 0;
+}
+.brand-button {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+.app-launcher-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.app-launcher-item {
+  min-height: 120px;
+  padding: 16px 12px;
+  border: 1px solid #dbe5ef;
+  border-radius: 16px;
+  background: #fff;
+
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+
+  color: #16324f;
+  text-decoration: none;
+  cursor: pointer;
+  text-align: left;
+}
+.app-launcher-item:hover {
+  background: #f5f9fd;
+}
+.app-launcher-item.active {
+  border-color: #1580ca;
+  background: #eef7fd;
+}
+.app-launcher-item strong {
+  font-size: 0.95rem;
+}
+.app-launcher-item small {
+  color: #718096;
+  font-size: 0.72rem;
+}

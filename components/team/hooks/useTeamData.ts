@@ -1,9 +1,10 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { initialData, type TeamData } from "@/lib/model";
 import type { AuthMember, AuthResponse, LoginMember } from "@/lib/auth-types";
 import { api, type ApiError, type TeamLoadResponse, type TeamPollResponse } from "../lib/api";
 import type { AuthState, SaveState } from "../types";
+import { AUTOSAVE_DELAY_MS, TEAM_POLL_INTERVAL_MS } from "../lib/sync-config";
 
 /**
  * チームデータのロード・自動保存・ログイン状態をまとめて扱うフック。
@@ -38,7 +39,9 @@ export function useTeamData() {
   const syncVersion = useRef(0);
   /** 画面が今持っている内容。ポーリングの判定で参照する */
   const currentDraft = useRef("");
-  currentDraft.current = JSON.stringify(data);
+  useLayoutEffect(() => {
+    currentDraft.current = JSON.stringify(data);
+  }, [data]);
 
   /* ---------------- ロード ---------------- */
 
@@ -128,7 +131,7 @@ export function useTeamData() {
       } finally {
         saving.current = false;
       }
-    }, 650);
+    }, AUTOSAVE_DELAY_MS);
     return () => clearTimeout(timer);
   }, [data, revision, auth, saveState]);
 
@@ -197,7 +200,7 @@ export function useTeamData() {
         })
         .catch(() => {})
         .finally(() => { polling = false; });
-    }, 60000);
+    }, TEAM_POLL_INTERVAL_MS);
     return () => {
       active = false;
       clearInterval(id);
@@ -334,5 +337,3 @@ export function useTeamData() {
     resumeAfterReauth,
   };
 }
-
-export type TeamDataStore = ReturnType<typeof useTeamData>;

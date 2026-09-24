@@ -4,62 +4,31 @@ interface Env {
     LINE_GROUP_ID: string;
 }
 
-type EquipmentItem = {
-    id: string;
-    name: string;
-    holderId: string | null;
-    note: string;
-};
-
-type EquipmentData = {
-    items: EquipmentItem[];
-};
-
-type Player = {
-    id: string;
-    name: string;
-};
-
-type TeamData = {
-    players: Player[];
+type EquipmentAssignment = {
+    equipment_name: string;
+    player_name: string | null;
 };
 
 export default {
     async scheduled(
         _controller: ScheduledController,
         env: Env,
-        _ctx: ExecutionContext,
     ) {
-        const [equipmentRow, teamRow] = await Promise.all([
-            env.DB.prepare(
-                "SELECT data FROM equipment_state WHERE id = 1",
-            ).first<{ data: string }>(),
+        // Match the app's active roster while retaining equipment assigned to
+        // former members as "unknown", rather than silently omitting it.
+        const { results: assignments } = await env.DB.prepare(`
+            SELECT e.name AS equipment_name, p.name AS player_name
+            FROM equipment_items AS e
+            LEFT JOIN players AS p
+                ON p.id = e.holder_id AND p.sort_order IS NOT NULL
+            WHERE e.holder_id IS NOT NULL
+            ORDER BY e.sort_order, e.id
+        `).all<EquipmentAssignment>();
 
-            env.DB.prepare("SELECT data FROM team_state WHERE id = 1").first<{
-                data: string;
-            }>(),
-        ]);
-
-        if (!equipmentRow || !teamRow) {
-            console.error("equipment_state または team_state が見つかりません");
-            return;
-        }
-
-        const equipmentData = JSON.parse(equipmentRow.data) as EquipmentData;
-        const teamData = JSON.parse(teamRow.data) as TeamData;
-
-        const playerMap = new Map(
-            teamData.players.map((player) => [player.id, player.name]),
+        const lines = assignments.map(
+            ({ player_name, equipment_name }) =>
+                `${player_name ?? "不明な選手"} ： ${equipment_name}`,
         );
-
-        const lines = equipmentData.items
-            .filter((item) => item.holderId)
-            .map((item) => {
-                const playerName =
-                    playerMap.get(item.holderId!) ?? "不明な選手";
-
-                return `${playerName} ： ${item.name}`;
-            });
 
         const message = [
             "⚾️ 今週の道具担当者一覧:（試合が無い週も毎週金曜日に送信されます）",

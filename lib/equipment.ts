@@ -15,19 +15,6 @@ export function initialEquipmentData(): EquipmentData {
     };
 }
 
-export function normalizeEquipmentData(data: EquipmentData): EquipmentData {
-    return {
-        items: Array.isArray(data.items)
-            ? data.items.map((item) => ({
-                  id: String(item.id ?? ""),
-                  name: String(item.name ?? ""),
-                  holderId: item.holderId ? String(item.holderId) : null,
-                  note: String(item.note ?? ""),
-              }))
-            : [],
-    };
-}
-
 export function validateEquipmentData(value: unknown): EquipmentData {
     if (!value || typeof value !== "object") {
         throw new Error("Invalid equipment data");

@@ -1,0 +1,94 @@
+# 開発・保守ガイド
+
+## 全体構成
+
+| 場所 | 役割 |
+| --- | --- |
+| `app/page.tsx` / `components/team/TeamApp.tsx` | チーム画面の入口、各画面・モーダルの接続 |
+| `components/team/hooks/useTeamUiState.ts` | タブ、選手選択、モーダルの開閉 |
+| `components/team/hooks/useTeamData.ts` | ログイン、チームの取得・保存、定期取得、再認証 |
+| `components/team/hooks/useAutosavedData.ts` | 道具・成績で共通の読み込み、自動保存、競合状態 |
+| `components/team/hooks/useEquipmentData.ts` | 道具APIへの接続 |
+| `components/team/hooks/useStatsData.ts` | 成績APIへの接続、変更した試合・削除した試合だけの送信 |
+| `components/team/lib/api.ts` | JSON通信、HTTPエラーの変換 |
+| `components/team/lib/lineup-actions.ts` / `lib/model.ts` | オーダー・選手のデータ操作と検証 |
+| `components/team/stats/StatsView.tsx` | 成績の入力・確認画面と操作 |
+| `components/team/stats/StatsValues.tsx` / `stats-summary.ts` | 確認画面の表示 / 成績集計・安打判定 |
+| `components/team/common/Modal.tsx` | 共通モーダル、キーボード表示時の高さ・フォーカス調整 |
+| `app/api/*/route.ts` | API入口 |
+| `lib/data-route.ts` / `lib/normalized-store.ts` | 共通API処理 / 正規化DBの読み取り・差分更新 |
+| `lib/server.ts` / `app/api/auth/route.ts` | Cookie、認証、メンバー紐付け、パスワード処理 |
+| `db/schema.ts` / `drizzle/` | Drizzleのスキーマと既存の移行SQL |
+| `workers/weekly-equipment/` | 独立して動く週次LINE通知Worker |
+
+`components/ui/`、`vendor/`、`build/sites-vite-plugin.ts` は提供元の共通部品です。通常の機能改修は各機能のコンポーネントで行います。設定やビルドから参照されるスキーマ、認証補助、スクリプトは、画面から直接呼ばれていなくても削除しません。
+
+## 保存と通信
+
+- 待ち時間は `components/team/lib/sync-config.ts`。自動保存650ms、チームの条件付き取得60秒を維持しています。
+- 道具・成績のデータソースは各フックのモジュール直下に定義します。レンダー中に作り直すと、共通フックの読み込みが再実行されます。
+- 共通フックは編集時に複製したデータを渡します。保存中の追加入力は次の保存対象に残し、409の競合は明示的な読み直しまで保持します。
+- 成績は試合単位の差分送信です。全件PUTへ置き換えないでください。
+- 認証・データ保存は既存のCookieとD1を使います。チーム・後藤ページ・パチンコで新たなlocalStorage/sessionStorage保存は行っていません。
+- `TabNav.tsx` のモジュール変数は、画面切り替えによる再マウント後にもタブの横スクロール位置を戻すために残しています。
+- 今回、APIのSQL、認証方式、DBスキーマ、移行SQLは変更していません。
+
+## パチンコ
+
+入口は `app/pachi/page.tsx`、YGチームメニューから遷移します。
+
+| 調整したい内容 | 変更場所 |
+| --- | --- |
+| 確率、期待度、演出時間、図柄・保留・ラウンド数 | `components/pachi/pachinko-game.ts` |
+| 玉の入賞、保留消化、停止順、PUSH、復活・大当たり進行 | `components/pachi/pachinko-controller.ts` |
+| Reactの状態との接続・破棄 | `components/pachi/usePachinkoGame.ts` |
+| 画面枠、操作ボタン、音を鳴らすタイミング | `components/pachi/PachinkoPage.tsx` |
+| 盤面、玉の軌道、釘、液晶の配置 | `components/pachi/PachinkoBoard.tsx` |
+| 図柄変動の表示 | `components/pachi/SymbolDisplay.tsx` と同名CSS Module |
+| 投球・スイング、777のポーズ、BONUS演出 | `components/pachi/BaseballShow.tsx` と同名CSS Module |
+| 音色、音量、777の読み上げ | `components/pachi/usePachinkoAudio.ts` |
+| 画像の同時読み込み数・タイムアウト | `components/pachi/usePachinkoAssets.ts` |
+
+図柄は `public/pachi/1.png`〜`9.png` を使用します。`SYMBOL_IDS` と画像パスは `pachinko-game.ts` に集約しています。図柄番号は1から連続する前提です。増減時は実際の画像も揃え、隣の図柄への移動や「7」の特別演出も確認してください。
+
+`JACKPOT_RATE` は通常保留の確率で、`HEAT_SETTINGS` の倍率を掛けます。`REACH_RATE` は外れ抽選のリーチ確率です。`SUPER_REACH_RATE` はリーチからの発展確率で期待度の加算があります。`REVIVAL_RATE` は当たりを一度外れに見せる演出の割合で、追加の当たり抽選ではありません。PUSHを押す時刻で結果は変わらず、8秒後には同じ結果を自動表示します。
+
+コントローラーがタイマーを所有し、非表示時の残り時間の保存・再開と、離脱時の破棄を担当します。単純な `await delay()` への置き換えで、この停止・破棄処理を失わないようにしてください。音は初期OFF、ブラウザーの音声APIで生成し、外部音声ファイルは使いません。ゲーム状態はメモリー内のみです。
+
+## 後藤ページ・動きを減らす設定
+
+`components/goto/goto-quotes.ts` が言葉と写真のデータ、`useWisdomScene.ts` が順序と時間です。間隔は同ファイルの `SCENE_TIMINGS` にまとめています。写真は `public/goto/` を参照します。
+
+OSの「視差効果を減らす」設定は `hooks/use-reduced-motion.ts` で共通購読し、解除も同じフックが行います。名言の途中で設定が変わっても、表示済みの言葉を最初から再生しません。
+
+## CSS
+
+`app/globals.css` は読み込み順を管理します。`app/styles/` を順番に読み込む構成で、既存ルールとメディアクエリの順序を保っています。
+
+- `base.css`: 色、フォント、共通要素
+- `team-layout.css`: チーム画面、オーダー、登録情報、レスポンシブ配置
+- `team-dialogs.css`: 共通モーダル、メニュー
+- `stats.css`: 成績入力・確認
+- `team-dialogs-mobile.css`: 既存の位置を保つため独立させたモバイル用上書き
+- `equipment.css`: 道具管理
+- `feedback.css`: 読み込み表示、登録メッセージ
+
+後藤・パチンコ・後藤の移動確認はCSS Modulesです。動的な座標・進捗・アニメーション用CSS変数はinline styleを維持しています。画像、音、アニメーションのデザインは今回の整理では変更していません。
+
+## 残した既存実装と確認事項
+
+週次LINE Workerは、アプリと同じD1の `equipment_items` と `players` を1回のSELECTで結合して読みます。担当者のある道具を登録順に通知し、名簿から外れた選手や参照先のない担当者は従来どおり「不明な選手」と表示します。旧JSONテーブルは参照しません。通知文面・送信先・毎週金曜の実行設定は従来どおりです。反映には週次Workerの再デプロイが必要で、バックアップ作成や追加のDB移行は不要です（既存の正規化済みDBを使用）。
+
+成績の得点圏集計は、現行の「未入力を除外した打席の添字」で判定する計算を維持しています。途中の未入力打席をどう扱うかの仕様変更は、集計整理と分けて確認してください。
+
+見た目と実機での確認では、タブの位置、道具・成績の保存中の追加入力と競合、名言の途中スキップ、パチンコの保留・PUSH・777・非表示からの復帰を確認します。`scripts/verify-app.mjs` はDB書き込みを伴うため、本番や既存データのある環境で不用意に実行しないでください。
+
+## 今回の確認結果
+
+- TypeScript: `tsc --noEmit --incremental false` 成功。
+- パチンコ: 仮想タイマーと同じ乱数で変更前後100ケースを比較し、時刻を含む状態遷移が一致。通常・動きを減らす設定、手動PUSH・自動決着、777、復活、保留の消化、非表示からの復帰、タイマー・リスナーの破棄を含みます。
+- CSS: 未使用の13クラスに関係する41セレクターを除外後、残るルールの順序が分割前と一致。13 CSSファイルの構文と27画像パスを確認。
+- ESLint: 今回変更したソースの指摘は解消。全体では既存のモーダル3件（`EquipmentEditorModal`・`NamePickerModal`・`ReauthModal` の状態リセットEffect）と、`MatchInfoPanel` のARIA警告2件が残っています。モーダルの開閉・再認証の動作を伴うため、その構造は今回維持しました。
+- ブラウザーでの描画・操作、ビルド、DB接続、LINE実送信は実施していません。
+
+`.wrangler/` や `dist/` は生成物としてLint対象から除外しています。既にGitで追跡されている生成物は、監視プロセスによってソース変更時に差分が生じるため、ソースの差分と区別して確認してください。

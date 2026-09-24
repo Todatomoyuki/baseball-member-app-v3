@@ -1,5 +1,7 @@
 # baseball-member-app-v3
 
+開発時のファイル構成・設定値・保存処理は [開発・保守ガイド](docs/development-guide.md) を参照してください。
+
 既存DBを使う場合は [DB正規化の移行手順](docs/database-normalization.md) と [メンバーログインの適用手順](docs/member-login.md) を確認してください。新しいAPIには `0004_member_devices.sql` までの適用が必要です。`0003` 適用済みのDBには `0004` だけを追加適用します。
 
 ## 🗺️ 今後の画面構成

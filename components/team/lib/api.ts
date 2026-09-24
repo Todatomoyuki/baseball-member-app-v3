@@ -31,6 +31,7 @@ export async function api<T = ApiResponse>(
   path: string,
   method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" = "GET",
   body?: unknown,
+  errorMessage = "通信できませんでした。",
 ): Promise<T> {
   const res = await fetch(path, {
     method,
@@ -40,7 +41,7 @@ export async function api<T = ApiResponse>(
   });
   const value = (await res.json()) as T & { error?: string };
   if (!res.ok) {
-    throw Object.assign(new Error(value.error || "通信できませんでした。"), {
+    throw Object.assign(new Error(value.error || errorMessage), {
       status: res.status,
     });
   }

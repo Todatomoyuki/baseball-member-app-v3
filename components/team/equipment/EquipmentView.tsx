@@ -18,6 +18,7 @@ import {
 import { ChevronDown, GripVertical } from "lucide-react";
 
 import type { Player } from "@/lib/model";
+import type { EquipmentItem } from "@/lib/equipment";
 import type { SaveState } from "../types";
 import { GotoMoveDialog } from "../lineup/GotoMoveDialog";
 
@@ -43,7 +44,7 @@ function DraggableEquipmentItem({
   name: string;
   note: string;
 }) {
-  const drag = useDraggable({
+  const { setNodeRef, listeners, attributes, isDragging, transform } = useDraggable({
     id: `equipment:${id}`,
     data: {
       type: "equipment",
@@ -53,16 +54,16 @@ function DraggableEquipmentItem({
 
   return (
     <button
-      ref={drag.setNodeRef}
-      {...drag.listeners}
-      {...drag.attributes}
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
       type="button"
-      className={`equipment-item ${drag.isDragging ? "dragging" : ""}`}
+      className={`equipment-item ${isDragging ? "dragging" : ""}`}
       style={{
-        transform: drag.transform
+        transform: transform
           ? `translate3d(
-              ${drag.transform.x}px,
-              ${drag.transform.y}px,
+              ${transform.x}px,
+              ${transform.y}px,
               0
             )`
           : undefined,
@@ -88,16 +89,11 @@ function EquipmentMember({
   items,
 }: {
   player: Player;
-  items: {
-    id: string;
-    name: string;
-    holderId: string | null;
-    note: string;
-  }[];
+  items: EquipmentItem[];
 }) {
   const [open, setOpen] = useState(false);
 
-  const drop = useDroppable({
+  const { setNodeRef, isOver } = useDroppable({
     id: `member:${player.id}`,
     data: {
       type: "member",
@@ -107,8 +103,8 @@ function EquipmentMember({
 
   return (
     <div
-      ref={drop.setNodeRef}
-      className={`equipment-member ${drop.isOver ? "drop-over" : ""}`}
+      ref={setNodeRef}
+      className={`equipment-member ${isOver ? "drop-over" : ""}`}
     >
       <button
         type="button"
@@ -148,7 +144,7 @@ function EquipmentMember({
 ========================================================= */
 
 function EmptyEquipmentMember({ player }: { player: Player }) {
-  const drop = useDroppable({
+  const { setNodeRef, isOver } = useDroppable({
     id: `member:${player.id}`,
     data: {
       type: "member",
@@ -158,8 +154,8 @@ function EmptyEquipmentMember({ player }: { player: Player }) {
 
   return (
     <div
-      ref={drop.setNodeRef}
-      className={`equipment-empty-member ${drop.isOver ? "drop-over" : ""}`}
+      ref={setNodeRef}
+      className={`equipment-empty-member ${isOver ? "drop-over" : ""}`}
     >
       <div>
         <strong>{player.name}</strong>

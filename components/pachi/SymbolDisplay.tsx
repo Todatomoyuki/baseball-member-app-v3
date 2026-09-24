@@ -1,8 +1,8 @@
-import type { SymbolId } from "./pachinko-game";
+import { symbolImagePath, type Symbols } from "./pachinko-game";
 import styles from "./SymbolDisplay.module.css";
 
 export interface SymbolDisplayProps {
-  symbols: [SymbolId, SymbolId, SymbolId];
+  symbols: Symbols;
   moving: [boolean, boolean, boolean];
   reach: boolean;
   jackpot: boolean;
@@ -30,7 +30,7 @@ export function SymbolDisplay({ symbols, moving, reach, jackpot, dimmed }: Symbo
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               className={styles.image}
-              src={`/pachi/${symbol}.png`}
+              src={symbolImagePath(symbol)}
               alt=""
               width={1254}
               height={1254}
@@ -43,5 +43,3 @@ export function SymbolDisplay({ symbols, moving, reach, jackpot, dimmed }: Symbo
     </div>
   );
 }
-
-export default SymbolDisplay;

@@ -52,5 +52,3 @@ export function useTeamUiState() {
     setInfoOpen,
   };
 }
-
-export type TeamUiState = ReturnType<typeof useTeamUiState>;
