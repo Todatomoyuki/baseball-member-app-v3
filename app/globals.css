@@ -1,16 +1,4 @@
 @import "tailwindcss";
-.header {
-  position: relative;
-  z-index: 100;
-}
-
-.back {
-  position: relative;
-  z-index: 101;
-  pointer-events: auto;
-  touch-action: manipulation;
-}
-
 :root {
   --background: #f1f5f9;
   --foreground: #16283e;

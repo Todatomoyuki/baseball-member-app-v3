@@ -36,7 +36,7 @@ export function AppMenuModal({
           <small></small>
         </button>
 
-        <Link href="/goto" className="app-launcher-item">
+        <Link href="/goto" className="app-launcher-item" onClick={onClose}>
           <Sparkles size={26} aria-hidden="true" />
           <strong>後藤君のありがたいお話</strong>
           <small>人生に、ときどき後藤を。</small>
