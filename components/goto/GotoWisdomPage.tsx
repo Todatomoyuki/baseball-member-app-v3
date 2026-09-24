@@ -100,10 +100,10 @@ export function GotoWisdomPage() {
       </div>
 
       <header className={styles.header}>
-        <Link href="/" className={styles.back} aria-label="チームのページへ戻る">
+        <a href="/" className={styles.back} aria-label="チームのページへ戻る">
           <ArrowLeft size={15} strokeWidth={1.3} aria-hidden="true" />
           <span>YG TEAM</span>
-        </Link>
+        </a>
         <span className={styles.headerTitle}>A MOMENT WITH GOTO</span>
         <span className={styles.edition}>VOL. 01</span>
       </header>
