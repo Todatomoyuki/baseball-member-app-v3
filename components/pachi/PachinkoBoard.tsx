@@ -96,7 +96,7 @@ export function PachinkoBoard({ game, assets, reducedMotion, ballSvg }: {
             {game.phase === "reach" && <div className={styles.reachTitle}>REACH<small>あと一人で、流れが変わる。</small></div>}
             {superScene && <span className={styles.heatBadge}>{heatLabel}</span>}
             {game.phase === "freeze" && <div className={styles.freeze} aria-hidden="true" />}
-            {game.phase === "miss" && <p className={styles.miss}>ハズレ<small>次の一球を、信じろ。</small></p>}
+            {game.phase === "miss" && <p className={styles.miss}>ハズレ<small>タコ負け～🐙</small></p>}
             {game.phase === "revival" && <div className={styles.crack} aria-hidden="true"><i /><i /><i /></div>}
             {game.phase === "jackpot" && <><div key={`win-${game.gameId}`} className={styles.winFlash} aria-hidden="true" /><p className={styles.jackpotLabel}>大当たり！</p><div className={styles.confetti} aria-hidden="true">{confetti.map((style, index) => <i key={index} style={style} />)}</div></>}
 
