@@ -1,6 +1,5 @@
 "use client";
-import Link from "next/link";
-import { ClipboardList, Sparkles, Users } from "lucide-react";
+import { CircleDot, ClipboardList, Sparkles, Users } from "lucide-react";
 import { Modal } from "../common/Modal";
 
 /**
@@ -40,6 +39,11 @@ export function AppMenuModal({
           <Sparkles size={26} aria-hidden="true" />
           <strong>後藤君のありがたいお話</strong>
           <small>人生に、ときどき後藤を。</small>
+        </a>
+        <a href="/pachi" className="app-launcher-item" onClick={onClose}>
+          <CircleDot size={26} aria-hidden="true" />
+          <strong>YGパチンコ</strong>
+          <small>YG NIGHT STADIUM</small>
         </a>
       </div>
     </Modal>
