@@ -54,7 +54,13 @@ export function StatsView({
   const [openPlate, setOpenPlate] = useState<number | null>(null);
   const [confirmationPage, setConfirmationPage] = useState(1);
   const [entryReset, setEntryReset] = useState(false);
-
+  const [draftValues, setDraftValues] = useState<PlayerStats>(() =>
+    emptyPlayerStats(),
+  );
+  const selectedGameKey = gameKey(selectedDate, selectedGameNumber);
+  const selectedPlayer = players.find(
+    (player) => player.id === (member.isAdmin ? selectedPlayerId : member.id),
+  );
   useEffect(() => {
     return () => {
       if (registrationTimer.current !== null)
@@ -84,6 +90,17 @@ export function StatsView({
       document.removeEventListener("pointerdown", closeOnOutsideInteraction);
     };
   }, [openPlate]);
+  useEffect(() => {
+    if (!selectedPlayer || !selectedDate) {
+      setDraftValues(emptyPlayerStats());
+      return;
+    }
+
+    setDraftValues(
+      stats.data.games[selectedGameKey]?.[selectedPlayer.id] ??
+        emptyPlayerStats(),
+    );
+  }, [selectedGameKey, selectedPlayer?.id, stats.data]);
 
   if (stats.loading)
     return <LoadingState label="成績データを読み込んでいます…" />;
@@ -104,19 +121,11 @@ export function StatsView({
 
   const canEditPlayer = (playerId: string) =>
     member.isAdmin || playerId === member.id;
-  const selectedPlayer = players.find(
-    (player) => player.id === (member.isAdmin ? selectedPlayerId : member.id),
-  );
-  const selectedGameKey = gameKey(selectedDate, selectedGameNumber);
-  const currentPlayers = stats.data.games[selectedGameKey] ?? {};
-  const selectedValues =
-    selectedPlayer && !entryReset
-      ? (currentPlayers[selectedPlayer.id] ?? emptyPlayerStats())
-      : emptyPlayerStats();
+  const selectedValues = draftValues;
   const canRegister = Boolean(
     selectedDate &&
-      selectedPlayer &&
-      selectedValues.plateAppearances.some((result) => result !== null),
+    selectedPlayer &&
+    selectedValues.plateAppearances.some((result) => result !== null),
   );
   const isSaving = stats.saveState === "dirty" || stats.saveState === "saving";
   const sortByNumber = (a: Player, b: Player) => {
@@ -138,24 +147,16 @@ export function StatsView({
   const editPlayer = (updater: (current: PlayerStats) => PlayerStats) => {
     if (!selectedDate || !selectedPlayer || !canEditPlayer(selectedPlayer.id))
       return;
+
     clearRegistrationMessage();
+
+    setDraftValues((current) =>
+      updater(entryReset ? emptyPlayerStats() : current),
+    );
+
     setEntryReset(false);
-    stats.edit((current: StatsData) => ({
-      ...current,
-      games: {
-        ...current.games,
-        [selectedGameKey]: {
-          ...(current.games[selectedGameKey] ?? {}),
-          [selectedPlayer.id]: updater(
-            entryReset
-              ? emptyPlayerStats()
-              : (current.games[selectedGameKey]?.[selectedPlayer.id] ??
-                emptyPlayerStats()),
-          ),
-        },
-      },
-    }));
   };
+
   const updatePlate = (index: number, result: PlateAppearanceResult | null) => {
     editPlayer((current) => {
       const plateAppearances = [...current.plateAppearances];
@@ -229,9 +230,22 @@ export function StatsView({
     window.scrollTo({ top: 0, behavior: "instant" });
   };
   const registerEntry = () => {
-    if (!canRegister || stats.saveState !== "saved") return;
+    if (!canRegister || !selectedPlayer) return;
+
     clearRegistrationMessage();
     setOpenPlate(null);
+
+    stats.edit((current: StatsData) => ({
+      ...current,
+      games: {
+        ...current.games,
+        [selectedGameKey]: {
+          ...(current.games[selectedGameKey] ?? {}),
+          [selectedPlayer.id]: draftValues,
+        },
+      },
+    }));
+
     setRegistered(true);
 
     registrationTimer.current = window.setTimeout(() => {
@@ -241,9 +255,9 @@ export function StatsView({
   };
   const resetEntry = () => {
     if (!selectedPlayer || !canEditPlayer(selectedPlayer.id)) return;
+
     clearRegistrationMessage();
-    // Keep the reset local until the next edit replaces this entry.
-    setEntryReset(true);
+    setDraftValues(emptyPlayerStats());
     setOpenPlate(null);
   };
   const deleteRegistration = (gameKeyToDelete: string, playerId: string) => {
@@ -493,7 +507,9 @@ export function StatsView({
                           onClick={(event) => {
                             event.currentTarget
                               .closest(".plate-entry")
-                              ?.querySelector<HTMLButtonElement>(".plate-square")
+                              ?.querySelector<HTMLButtonElement>(
+                                ".plate-square",
+                              )
                               ?.focus();
                           }}
                         >
@@ -593,7 +609,7 @@ export function StatsView({
             <button
               type="button"
               className="secondary"
-              disabled={!selectedPlayer || !selectedDate || entryReset}
+              disabled={!selectedPlayer || !selectedDate}
               onClick={resetEntry}
             >
               入力をリセット
