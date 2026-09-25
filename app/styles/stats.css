@@ -282,6 +282,17 @@
 .stats-confirm-list {
   overflow: hidden;
 }
+.stats-game-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.stats-game-heading h2 {
+  min-width: 0;
+  margin: 0;
+}
 .stats-pagination {
   display: flex;
   align-items: center;
