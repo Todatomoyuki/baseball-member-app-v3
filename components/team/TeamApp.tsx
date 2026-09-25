@@ -14,11 +14,10 @@ import { usePdfExport } from "./hooks/usePdfExport";
 import { useLineupTool } from "./hooks/useLineupTool";
 import { EquipmentView } from "./equipment/EquipmentView";
 import { StatsView } from "./stats/StatsView";
-import { ScheduleView } from "./schedule/ScheduleView";
+import { ScheduleView, type ScheduleEditorRequest } from "./schedule/ScheduleView";
+import { createEntityId } from "@/lib/entity-id";
 
 import {
-  pickOpponentUpdater,
-  pickTournamentUpdater,
   removePlayerUpdater,
   selectPlayerUpdater,
   setPositionUpdater,
@@ -39,7 +38,6 @@ import { RegistrationPanel } from "./roster/RegistrationPanel";
 import { PlayerEditorModal } from "./modals/PlayerEditorModal";
 import { PlayerPickerModal } from "./modals/PlayerPickerModal";
 import { PositionPickerModal } from "./modals/PositionPickerModal";
-import { NamePickerModal } from "./modals/NamePickerModal";
 import { SettingsModal } from "./modals/SettingsModal";
 import { ReauthModal } from "./modals/ReauthModal";
 import { PdfWarningModal } from "./modals/PdfWarningModal";
@@ -67,6 +65,7 @@ export function TeamApp() {
   const [equipmentSaveState, setEquipmentSaveState] = useState<SaveState>("saved");
   const [statsSaveState, setStatsSaveState] = useState<SaveState>("saved");
   const [scheduleSaveState, setScheduleSaveState] = useState<SaveState>("saved");
+  const [scheduleEditorRequest, setScheduleEditorRequest] = useState<ScheduleEditorRequest | null>(null);
 
   useLineupTool(team.data, team.auth);
 
@@ -211,6 +210,7 @@ export function TeamApp() {
           onSaveStateChange={setScheduleSaveState}
           onSaved={team.refreshIfIdle}
           remoteRevision={team.scheduleRevision}
+          editorRequest={scheduleEditorRequest}
         />
       </div>
 
@@ -264,17 +264,16 @@ export function TeamApp() {
               scheduleOptions={team.schedules}
               attendance={team.attendance}
               attendanceScheduleId={team.attendanceScheduleId}
-              onOpenSchedule={() => ui.setAppView("schedule")}
+              onOpenSchedule={() => {
+                ui.setAppView("schedule");
+                if (canEditLineup) setScheduleEditorRequest({ requestId: createEntityId(), gameId: data.scheduleId, date: data.date, startTime: data.startTime, title: data.tournament, opponent: data.opponent, location: data.location });
+              }}
               edit={editLineup}
               readOnly={!canEditLineup}
               bench={bench}
               absent={absent}
               infoOpen={ui.infoOpen}
               onToggleInfo={() => ui.setInfoOpen(!ui.infoOpen)}
-              tournamentPickerOpen={ui.tournamentPicker}
-              onOpenTournamentPicker={() => ui.setTournamentPicker(true)}
-              teamPickerOpen={ui.teamPicker}
-              onOpenTeamPicker={() => ui.setTeamPicker(true)}
               onPickPlayer={ui.setPick}
               onPickPosition={ui.setPositionIndex}
               onEditPlayer={ui.setEditor}
@@ -345,36 +344,6 @@ export function TeamApp() {
         data={data}
         onClose={() => ui.setPositionIndex(null)}
         onSelect={changePosition}
-      />
-
-      <NamePickerModal
-        open={canEditLineup && ui.teamPicker}
-        onClose={() => ui.setTeamPicker(false)}
-        title="相手チームを選択"
-        description="登録済みのチームを検索、または新しく追加できます。"
-        placeholder="チーム名を検索・入力"
-        searchLabel="チーム名を検索"
-        emptyMessage="チーム名を入力すると追加できます。"
-        options={nameOptions.opponent}
-        onSelect={(name) => {
-          editLineup(pickOpponentUpdater(name, !data.opponents.includes(name)));
-          ui.setTeamPicker(false);
-        }}
-      />
-
-      <NamePickerModal
-        open={canEditLineup && ui.tournamentPicker}
-        onClose={() => ui.setTournamentPicker(false)}
-        title="大会名を選択"
-        description="過去の大会名を検索、または新しく追加できます。"
-        placeholder="大会名を検索・入力"
-        searchLabel="大会名を検索"
-        emptyMessage="大会名を入力すると追加できます。"
-        options={nameOptions.title}
-        onSelect={(name) => {
-          editLineup(pickTournamentUpdater(name, !data.tournaments.includes(name)));
-          ui.setTournamentPicker(false);
-        }}
       />
 
       <SettingsModal

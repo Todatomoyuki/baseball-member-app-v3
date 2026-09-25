@@ -1,13 +1,40 @@
-import { validateData } from "./model";
+import { validateData, type TeamData } from "./model";
 import { validateEquipmentData } from "./equipment";
 import { gameKey, parseGameKey, validateStatsData, type StatsData } from "./stats";
-import { validateScheduleData } from "./schedule";
+import { SCHEDULE_LIMITS, validateScheduleData, type ScheduleData } from "./schedule";
 import { json, readBody, renewSessionHeaders, sameOrigin } from "./server";
-import { decodeData, encodeData, readSnapshot, writeChanges, synchronizeTeamSnapshot, teamScheduleMetadata, StatsPermissionError, LineupPermissionError, SchedulePermissionError, type DataScope, type ScopeData } from "./normalized-store";
+import { decodeData, encodeData, readSnapshot, writeChanges, synchronizeTeamSnapshot, teamScheduleMetadata, mergeScheduleChanges, SCHEDULE_PAGE_SIZE, StatsPermissionError, LineupPermissionError, SchedulePermissionError, type DataScope, type ScopeData, type ScheduleQuery } from "./normalized-store";
 
 const validators = { team: validateData, equipment: validateEquipmentData, stats: validateStatsData, schedule: validateScheduleData };
 const labels = { team: "チーム", equipment: "道具", stats: "成績", schedule: "スケジュール" };
 const conflict = () => json({ error: "別の端末で更新されています。編集中の内容を確認して、最新データを読み込んでください。" }, 409);
+
+function validScheduleId(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0 && value.length <= SCHEDULE_LIMITS.id && value.trim() === value;
+}
+
+function scheduleQuery(params: URLSearchParams): ScheduleQuery {
+  const id = params.get("id");
+  const past = params.get("past");
+  const beforeDate = params.get("beforeDate");
+  const beforeId = params.get("beforeId");
+  if (id !== null) {
+    if (!validScheduleId(id) || past !== null || beforeDate !== null || beforeId !== null) throw new Error("Invalid schedule selection");
+    return { kind: "single", id };
+  }
+  if (past === null) {
+    if (beforeDate !== null || beforeId !== null) throw new Error("Unexpected schedule cursor");
+    return { kind: "upcoming" };
+  }
+  if (past !== "1") throw new Error("Invalid schedule page");
+  if (beforeDate === null && beforeId === null) return { kind: "past" };
+  if (beforeDate === null || !validScheduleId(beforeId) || !/^\d{4}-\d{2}-\d{2}$/.test(beforeDate) || beforeDate.startsWith("0000-")) {
+    throw new Error("Invalid schedule cursor");
+  }
+  const date = new Date(`${beforeDate}T00:00:00.000Z`);
+  if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== beforeDate) throw new Error("Invalid schedule date");
+  return { kind: "past", before: { date: beforeDate, id: beforeId } };
+}
 
 export function dataRoute(scope: DataScope) {
   return {
@@ -21,7 +48,13 @@ export function dataRoute(scope: DataScope) {
         if (revision !== null && (!Number.isSafeInteger(revision) || revision < 0)) {
           return json({ error: "更新番号が不正です。" }, 400);
         }
-        let snapshot = await readSnapshot(req, scope, revision === null ? undefined : { revision, mode: "changed", scheduleRevision });
+        let query: ScheduleQuery | undefined;
+        try {
+          if (scope === "schedule") query = scheduleQuery(params);
+        } catch {
+          return json({ error: "取得する予定・ページの指定を確認してください。" }, 400);
+        }
+        let snapshot = await readSnapshot(req, scope, revision === null ? undefined : { revision, mode: "changed", scheduleRevision }, undefined, { schedule: query });
         if (!snapshot) return json({ error: "ログインしてください。" }, 401);
         if (scope === "team" && snapshot.tables) {
           // Successful projections update the in-memory snapshot, avoiding a second SELECT.
@@ -34,6 +67,14 @@ export function dataRoute(scope: DataScope) {
         }
         const headers = renewSessionHeaders(req);
         if (!snapshot.tables) return json({ revision: snapshot.revision, unchanged: true, member: snapshot.member }, 200, headers);
+        if (scope === "schedule") {
+          const data = decodeData("schedule", snapshot.tables) as ScheduleData;
+          const hasMore = query?.kind === "past" && data.games.length > SCHEDULE_PAGE_SIZE;
+          if (hasMore) data.games = data.games.slice(0, SCHEDULE_PAGE_SIZE);
+          const last = data.games.at(-1);
+          return json({ data, revision: snapshot.revision, member: snapshot.member, hasMore,
+            nextCursor: hasMore && last ? { date: last.date, id: last.id } : null }, 200, headers);
+        }
         return json({ data: decodeData(scope, snapshot.tables), revision: snapshot.revision, member: snapshot.member,
           ...(scope === "team" ? teamScheduleMetadata(snapshot) : {}) }, 200, headers);
       } catch {
@@ -46,11 +87,26 @@ export function dataRoute(scope: DataScope) {
         let data: ScopeData[DataScope];
         let revision: number;
         let gameKeys: string[] | undefined;
+        let removedSchedules: string[] = [];
+        let changedScheduleIds: string[] | undefined;
+        let scheduleSelection: ScheduleQuery | undefined;
         try {
           const input = await readBody(req);
           if (!input || !Number.isSafeInteger(input.revision) || input.revision < 0) throw new Error("Invalid revision");
           revision = input.revision;
           data = validators[scope](input.data);
+          if (scope === "schedule") {
+            // Full-list saves from old clients are rejected: unloaded pages must
+            // never be interpreted as events the user intended to delete.
+            if (input.partial !== true || !Array.isArray(input.removedGames) ||
+                input.removedGames.length > SCHEDULE_LIMITS.games || !input.removedGames.every(validScheduleId)) {
+              throw new Error("Partial schedule save is required");
+            }
+            changedScheduleIds = (data as ScheduleData).games.map((game) => game.id);
+            removedSchedules = [...new Set<string>(input.removedGames)];
+            if (removedSchedules.some((id) => changedScheduleIds!.includes(id))) throw new Error("Conflicting schedule changes");
+            scheduleSelection = { kind: "write", ids: [...changedScheduleIds, ...removedSchedules] };
+          }
           if (scope === "stats" && input.partial === true) {
             if (!Array.isArray(input.removedGames) || input.removedGames.some((key: unknown) => {
               if (typeof key !== "string") return true;
@@ -66,10 +122,14 @@ export function dataRoute(scope: DataScope) {
         }
         // Authentication and the baseline read share a single SELECT. A stale
         // revision returns without scanning the domain's child tables.
-        const snapshot = await readSnapshot(req, scope, { revision, mode: "matching" }, gameKeys);
+        const snapshot = await readSnapshot(req, scope, { revision, mode: "matching" }, gameKeys, {
+          schedule: scheduleSelection,
+          ...(scope === "team" ? { team: data as TeamData } : {}),
+        });
         if (!snapshot) return json({ error: "再ログインしてください。" }, 401);
         if (snapshot.revision !== revision) return conflict();
-        const result = await writeChanges(scope, snapshot, encodeData(scope, data));
+        if (scope === "schedule") data = mergeScheduleChanges(snapshot, data as ScheduleData, removedSchedules);
+        const result = await writeChanges(scope, snapshot, encodeData(scope, data), changedScheduleIds);
         if (result === null) return conflict();
         if (scope === "team" && result.data) {
           snapshot.tables = encodeData("team", result.data);

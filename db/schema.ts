@@ -84,16 +84,25 @@ export const scheduleGames = sqliteTable("schedule_games", {
     opponent: text("opponent").notNull().default(""),
     location: text("location").notNull().default(""),
     mapUrl: text("map_url").notNull().default(""),
-}, (table) => [index("schedule_games_date_start_time_idx").on(table.date, table.startTime)]);
+    status: text("status").notNull().default("unconfirmed"),
+    detailsRevision: integer("details_revision").notNull().default(1),
+}, (table) => [
+    index("schedule_games_date_start_time_idx").on(table.date, table.startTime),
+    index("schedule_games_date_id_idx").on(table.date, table.id),
+    check("schedule_games_status_check", sql`${table.status} IN ('unconfirmed', 'proposed', 'confirmed')`),
+    check("schedule_games_details_revision_check", sql`${table.detailsRevision} >= 1`),
+]);
 
 export const scheduleResponses = sqliteTable("schedule_responses", {
     scheduleId: text("schedule_id").notNull().references(() => scheduleGames.id, { onDelete: "cascade" }),
     playerId: text("player_id").notNull().references(() => players.id),
     status: text("status").notNull(),
     comment: text("comment").notNull().default(""),
+    confirmedRevision: integer("confirmed_revision").notNull().default(1),
 }, (table) => [
     primaryKey({ columns: [table.scheduleId, table.playerId] }),
     check("schedule_responses_status_check", sql`${table.status} IN ('attending', 'absent', 'undecided')`),
+    check("schedule_responses_confirmed_revision_check", sql`${table.confirmedRevision} >= 0`),
 ]);
 
 export const statsGames = sqliteTable("stats_games", {

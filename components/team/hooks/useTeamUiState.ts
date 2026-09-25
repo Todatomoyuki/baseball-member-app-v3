@@ -22,8 +22,6 @@ export function useTeamUiState() {
   /** 守備位置変更モーダル（対象の打順インデックス） */
   const [positionIndex, setPositionIndex] = useState<number | null>(null);
 
-  const [teamPicker, setTeamPicker] = useState(false);
-  const [tournamentPicker, setTournamentPicker] = useState(false);
   const [settings, setSettings] = useState(false);
   const [appMenuOpen, setAppMenuOpen] = useState(false);
   /** スマホで試合情報パネルを開いているか */
@@ -40,10 +38,6 @@ export function useTeamUiState() {
     setPick,
     positionIndex,
     setPositionIndex,
-    teamPicker,
-    setTeamPicker,
-    tournamentPicker,
-    setTournamentPicker,
     settings,
     setSettings,
     appMenuOpen,

@@ -3,7 +3,7 @@ import { type EquipmentData } from "./equipment";
 import { emptyPlayerStats, gameKey, parseGameKey, type StatsData, type PlateAppearanceResult } from "./stats";
 import { db, digest, random, token } from "./server";
 import type { AuthMember } from "./auth-types";
-import { upcomingSaturday, type ScheduleData, type ScheduleGame } from "./schedule";
+import { japanDate, upcomingSaturday, type ScheduleData, type ScheduleGame } from "./schedule";
 import { projectScheduleOrder } from "./schedule-order";
 
 export type DataScope = "team" | "equipment" | "stats" | "schedule";
@@ -34,8 +34,8 @@ const tables: Record<DataScope, Table[]> = {
     { name: "equipment_items", columns: ["id", "name", "holder_id", "note", "sort_order", "notify_line"], keys: ["id"], order: "sort_order" },
   ],
   schedule: [
-    { name: "schedule_games", columns: ["id", "date", "start_time", "title", "opponent", "location", "map_url"], keys: ["id"], order: "date, start_time, id" },
-    { name: "schedule_responses", columns: ["schedule_id", "player_id", "status", "comment"], keys: ["schedule_id", "player_id"], order: "schedule_id, player_id" },
+    { name: "schedule_games", columns: ["id", "date", "start_time", "title", "opponent", "location", "map_url", "status", "details_revision"], keys: ["id"], order: "date, start_time, id" },
+    { name: "schedule_responses", columns: ["schedule_id", "player_id", "status", "comment", "confirmed_revision"], keys: ["schedule_id", "player_id"], order: "schedule_id, player_id" },
   ],
   stats: [
     { name: "stats_games", columns: ["game_date", "game_number"], keys: ["game_date", "game_number"], order: "game_date, game_number" },
@@ -44,12 +44,62 @@ const tables: Record<DataScope, Table[]> = {
   ],
 };
 
-function snapshotSql(scope: DataScope, partitioned: boolean) {
+export const SCHEDULE_PAGE_SIZE = 20;
+export type ScheduleQuery =
+  | { kind: "upcoming" }
+  | { kind: "past"; before?: { date: string; id: string } }
+  | { kind: "single"; id: string }
+  | { kind: "write"; ids: string[] };
+type SnapshotSelection = {
+  schedule?: ScheduleQuery;
+  team?: Pick<TeamData, "date" | "scheduleId">;
+};
+
+/** All schedule snapshots share a bounded/indexed ID selection. UNION keeps the
+ * active order available even when its selected date lies in the archived past.
+ */
+function scheduleSelectionSql(scope: "team" | "schedule", selection: SnapshotSelection = {}, now = new Date()) {
+  const values: Cell[] = [];
+  const query = selection.schedule ?? { kind: "upcoming" };
+  const parts: string[] = [];
+  if (scope === "team" || query.kind === "upcoming") {
+    parts.push("SELECT id FROM schedule_games WHERE date>=?");
+    values.push(japanDate(now));
+  } else if (query.kind === "past") {
+    parts.push(`SELECT id FROM (SELECT id FROM schedule_games WHERE date<?
+      ${query.before ? "AND (date,id)<(?,?)" : ""}
+      ORDER BY date DESC,id DESC LIMIT ${SCHEDULE_PAGE_SIZE + 1})`);
+    values.push(japanDate(now), ...(query.before ? [query.before.date, query.before.id] : []));
+  } else if (query.kind === "single") {
+    parts.push("SELECT id FROM schedule_games WHERE id=?");
+    values.push(query.id);
+  } else {
+    parts.push("SELECT id FROM schedule_games WHERE id IN (SELECT value FROM json_each(?))");
+    values.push(JSON.stringify(query.ids));
+  }
+  if (scope === "team" || query.kind === "write") {
+    parts.push("SELECT id FROM schedule_games WHERE id=(SELECT schedule_id FROM team_settings WHERE id=1)");
+    parts.push("SELECT id FROM schedule_games WHERE date=(SELECT game_date FROM team_settings WHERE id=1)");
+    if (query.kind === "write") {
+      parts.push("SELECT id FROM schedule_games WHERE date=?");
+      values.push(upcomingSaturday(now));
+    }
+    if (selection.team) {
+      parts.push("SELECT id FROM schedule_games WHERE id=?");
+      parts.push("SELECT id FROM schedule_games WHERE date=?");
+      values.push(selection.team.scheduleId, selection.team.date);
+    }
+  }
+  return { sql: `WITH schedule_selection AS (${parts.join(" UNION ")})`, values };
+}
+
+function snapshotSql(scope: DataScope, partitioned: boolean, past = false) {
   return `json_object(${tables[scope].map((table) =>
     `'${table.name}', (SELECT json_group_array(json_array(${table.columns.join(",")}))
       FROM (SELECT ${table.columns.join(",")} FROM ${table.name}
-        ${partitioned ? "WHERE (game_date,game_number) IN (SELECT json_extract(value,'$[0]'),json_extract(value,'$[1]') FROM json_each(?))" : table.filter ? `WHERE ${table.filter}` : ""}
-        ORDER BY ${table.order}))`,
+        ${scope === "schedule" ? `WHERE ${table.name === "schedule_games" ? "id" : "schedule_id"} IN (SELECT id FROM schedule_selection)`
+          : partitioned ? "WHERE (game_date,game_number) IN (SELECT json_extract(value,'$[0]'),json_extract(value,'$[1]') FROM json_each(?))" : table.filter ? `WHERE ${table.filter}` : ""}
+        ORDER BY ${past && table.name === "schedule_games" ? "date DESC,id DESC" : table.order}))`,
   ).join(",")})`;
 }
 
@@ -88,10 +138,11 @@ export async function readSnapshot(
   scope: DataScope,
   condition?: { revision: number; mode: "changed" | "matching"; scheduleRevision?: number },
   gameKeys?: string[],
+  selection: SnapshotSelection = {},
 ): Promise<Snapshot | null> {
   const session = token(req);
   if (!/^[a-f0-9]{64}$/.test(session)) return null;
-  const linked = scope === "team" || scope === "schedule";
+  const linked = scope === "team" || (scope === "schedule" && condition?.mode === "matching");
   const otherScope = scope === "team" ? "schedule" : "team";
   let predicate = condition
     ? `r.revision ${condition.mode === "changed" ? "<>" : "="} ?`
@@ -108,12 +159,14 @@ export async function readSnapshot(
       return [game.date, game.number];
     })) : null;
   const sessionHash = await digest(session);
+  const scheduleSelection = scope === "team" || scope === "schedule" ? scheduleSelectionSql(scope, selection) : null;
   const result = await db().prepare(`
+    ${scheduleSelection?.sql ?? ""}
     SELECT r.revision, p.id, p.name, p.number, p.is_admin, p.can_edit_lineup,
       ${linked ? "related.revision AS related_revision, settings.schedule_week," : ""}
       CASE WHEN ${predicate} THEN ${linked
         ? `json_object('primary', ${snapshotSql(scope, false)}, 'related', ${snapshotSql(otherScope, false)})`
-        : snapshotSql(scope, partition !== null)} END AS data
+        : snapshotSql(scope, partition !== null, selection.schedule?.kind === "past")} END AS data
     FROM sessions AS s
     JOIN member_devices AS d ON d.hash=s.device_hash
     JOIN players AS p ON p.id=d.player_id AND p.sort_order IS NOT NULL
@@ -121,6 +174,7 @@ export async function readSnapshot(
     ${linked ? `JOIN app_revisions AS related ON related.scope='${otherScope}' JOIN team_settings AS settings ON settings.id=1` : ""}
     WHERE s.hash=? AND (s.expires=0 OR s.expires>?)
   `).bind(
+    ...(scheduleSelection?.values ?? []),
     ...predicateValues,
     ...(partition === null ? [] : tables[scope].map(() => partition)),
     scope, sessionHash, Date.now(),
@@ -168,13 +222,22 @@ export function decodeData(scope: DataScope, rows: Tables): ScopeData[DataScope]
     } satisfies EquipmentData;
   }
   if (scope === "schedule") {
+    const responsesByGame = new Map<Cell, Array<[string, ScheduleGame["responses"][string]]>>();
+    for (const response of rows.schedule_responses) {
+      const responses = responsesByGame.get(response[0]) ?? [];
+      responses.push([response[1] as string, {
+        status: response[2] as ScheduleGame["responses"][string]["status"],
+        comment: response[3] as string,
+        confirmedRevision: response[4] as number,
+      }]);
+      responsesByGame.set(response[0], responses);
+    }
     return {
       games: rows.schedule_games.map((row) => ({
         id: row[0] as string, date: row[1] as string, startTime: row[2] as string,
         title: row[3] as string, opponent: row[4] as string, location: row[5] as string, mapUrl: row[6] as string,
-        responses: Object.fromEntries(rows.schedule_responses.filter((response) => response[0] === row[0]).map((response) => [response[1] as string, {
-          status: response[2] as ScheduleGame["responses"][string]["status"], comment: response[3] as string,
-        }])),
+        status: row[7] as ScheduleGame["status"], detailsRevision: row[8] as number,
+        responses: Object.fromEntries(responsesByGame.get(row[0]) ?? []),
       })),
     } satisfies ScheduleData;
   }
@@ -232,8 +295,8 @@ export function encodeData(scope: DataScope, data: ScopeData[DataScope]): Tables
   if (scope === "schedule") {
     const games = (data as ScheduleData).games;
     return {
-      schedule_games: games.map((game) => [game.id, game.date, game.startTime, game.title, game.opponent, game.location, game.mapUrl]),
-      schedule_responses: games.flatMap((game) => Object.entries(game.responses).map(([id, response]) => [game.id, id, response.status, response.comment])),
+      schedule_games: games.map((game) => [game.id, game.date, game.startTime, game.title, game.opponent, game.location, game.mapUrl, game.status, game.detailsRevision]),
+      schedule_responses: games.flatMap((game) => Object.entries(game.responses).map(([id, response]) => [game.id, id, response.status, response.comment, response.confirmedRevision])),
     };
   }
   return { equipment_items: (data as EquipmentData).items.map((item, index) => [item.id, item.name, item.holderId, item.note, index, item.notifyLine ? 1 : 0]) };
@@ -255,10 +318,55 @@ function changesBetween(scope: DataScope, previous: Tables, next: Tables) {
 type ChangeGroup = { scope: DataScope; revision: number; changes: ReturnType<typeof changesBetween> };
 const hasChanges = (group: ChangeGroup) => group.changes.some((change) => change.upsert.length || change.remove.length);
 
+/** Partial requests replace only explicit IDs. Projection context and unloaded
+ * history never become implicit deletions when a mobile client saves a page.
+ */
+export function mergeScheduleChanges(snapshot: Snapshot, incoming: ScheduleData, removedGames: string[]): ScheduleData {
+  if (!snapshot.tables) throw new Error("Missing schedule baseline");
+  if (removedGames.length && !snapshot.member.canEditLineup) throw new SchedulePermissionError();
+  const baseline = decodeData("schedule", snapshot.tables) as ScheduleData;
+  const changed = new Map(incoming.games.map((game) => [game.id, game]));
+  const removed = new Set(removedGames);
+  return {
+    games: [
+      ...baseline.games.filter((game) => !changed.has(game.id) && !removed.has(game.id)),
+      ...incoming.games,
+    ],
+  };
+}
+
+function normalizeScheduleRevisions(previous: Tables, next: Tables): ScheduleData {
+  const baseline = decodeData("schedule", previous) as ScheduleData;
+  const before = new Map(baseline.games.map((game) => [game.id, game]));
+  const incoming = decodeData("schedule", next) as ScheduleData;
+  const coreFields = ["date", "startTime", "title", "opponent", "location", "status"] as const;
+  return {
+    games: incoming.games.map((game) => {
+      const old = before.get(game.id);
+      const detailsRevision = old
+        ? old.detailsRevision + (coreFields.some((key) => game[key] !== old[key]) ? 1 : 0)
+        : 1;
+      if (!Number.isSafeInteger(detailsRevision)) throw new Error("Schedule revision limit reached");
+      return {
+        ...game,
+        detailsRevision,
+        responses: Object.fromEntries(Object.entries(game.responses).map(([id, response]) => {
+          const prior = old?.responses[id];
+          const answered = !prior || response.status !== prior.status || response.comment !== prior.comment ||
+            response.confirmedRevision !== prior.confirmedRevision;
+          return [id, { ...response, confirmedRevision: answered ? detailsRevision : prior.confirmedRevision }];
+        })),
+      };
+    }),
+  };
+}
+
 /** Diff against the authenticated baseline; automatic order changes are derived afterwards. */
-export async function writeChanges(scope: DataScope, snapshot: Snapshot, next: Tables): Promise<{ revision: number; data?: TeamData } | null> {
+export async function writeChanges(scope: DataScope, snapshot: Snapshot, next: Tables, scheduleGameIds?: string[]): Promise<{ revision: number; data?: TeamData | ScheduleData } | null> {
   if (!snapshot.tables) return null;
   const previous = snapshot.tables;
+  const normalizedSchedule = scope === "schedule" ? normalizeScheduleRevisions(previous, next) : undefined;
+  if (normalizedSchedule) next = encodeData("schedule", normalizedSchedule);
   const changes = changesBetween(scope, previous, next);
   if (scope === "team" && !snapshot.member.canEditLineup) {
     // Roster metadata remains editable. Existing placement and membership are
@@ -334,12 +442,15 @@ export async function writeChanges(scope: DataScope, snapshot: Snapshot, next: T
     if (scope === "team") groups[0].changes = teamChanges;
     else groups.push({ scope: "team", revision: snapshot.related.revision, changes: teamChanges });
   }
-  if (!groups.some(hasChanges) && week === undefined) return { revision: snapshot.revision, ...(scope === "team" ? { data: projected } : {}) };
+  const savedData = scope === "team" ? projected : normalizedSchedule
+    ? { games: normalizedSchedule.games.filter((game) => scheduleGameIds?.includes(game.id) ?? true) }
+    : undefined;
+  if (!groups.some(hasChanges) && week === undefined) return { revision: snapshot.revision, ...(savedData ? { data: savedData } : {}) };
 
   const revision = await commitChanges(db(), groups, snapshot.related
     ? { scope: scope === "team" ? "schedule" : "team", revision: snapshot.related.revision }
     : undefined, { sessionHash: snapshot.sessionHash, member: snapshot.member }, week);
-  return revision === null ? null : { revision, ...(scope === "team" ? { data: projected } : {}) };
+  return revision === null ? null : { revision, ...(savedData ? { data: savedData } : {}) };
 }
 
 /** A single transaction claims both revisions before applying either domain. */
@@ -421,7 +532,7 @@ export function teamScheduleMetadata(snapshot: Snapshot) {
   const selectedId = snapshot.tables?.team_settings[0]?.[8];
   return {
     scheduleRevision: snapshot.related?.revision ?? 0,
-    schedules: schedule?.games.map((game) => ({ id: game.id, date: game.date, startTime: game.startTime, title: game.title, opponent: game.opponent, location: game.location, mapUrl: game.mapUrl })) ?? [],
+    schedules: schedule?.games.map((game) => ({ id: game.id, date: game.date, startTime: game.startTime, title: game.title, opponent: game.opponent, location: game.location, mapUrl: game.mapUrl, status: game.status, detailsRevision: game.detailsRevision })) ?? [],
     attendance: schedule?.games.find((game) => game.id === selectedId)?.responses ?? {},
     attendanceScheduleId: (selectedId as string | null | undefined) ?? null,
   };
@@ -451,11 +562,12 @@ export async function synchronizeTeamSnapshot(snapshot: Snapshot, database: D1Da
 /** Trusted cron entry point. It has no HTTP route and cannot bypass API permissions. */
 export async function syncScheduledOrder(database: D1Database, now = new Date()): Promise<boolean> {
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    const result = await database.prepare(`SELECT r.revision, related.revision AS related_revision, settings.schedule_week,
+    const selection = scheduleSelectionSql("team", {}, now);
+    const result = await database.prepare(`${selection.sql} SELECT r.revision, related.revision AS related_revision, settings.schedule_week,
       ${snapshotSql("team", false)} AS team_data, ${snapshotSql("schedule", false)} AS schedule_data
       FROM app_revisions r JOIN app_revisions related ON related.scope='schedule'
       JOIN team_settings settings ON settings.id=1 WHERE r.scope='team'`)
-      .first<{ revision: number; related_revision: number; schedule_week: string; team_data: string; schedule_data: string }>();
+      .bind(...selection.values).first<{ revision: number; related_revision: number; schedule_week: string; team_data: string; schedule_data: string }>();
     if (!result) throw new Error("Schedule migration is incomplete");
     const outcome = await synchronizeTeamSnapshot({
       revision: result.revision, tables: JSON.parse(result.team_data), week: result.schedule_week,

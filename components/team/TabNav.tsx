@@ -51,7 +51,7 @@ export function TabNav({
           onClick={() => onViewChange("schedule")}
         >
           <CalendarDays size={16} />
-          スケジュール管理
+          予定管理
         </button>
         <button
           className={appView === "equipment" ? "active" : ""}

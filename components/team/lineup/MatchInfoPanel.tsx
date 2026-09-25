@@ -1,12 +1,9 @@
 "use client";
-import { useState } from "react";
-import { CalendarDays, ChevronDown, FileDown, MapPin } from "lucide-react";
+import { CalendarDays, ChevronDown, FileDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import type { TeamData } from "@/lib/model";
-import { mapLinks, type ScheduleGame } from "@/lib/schedule";
+import type { ScheduleGame } from "@/lib/schedule";
 import { setFieldUpdater } from "../lib/lineup-actions";
-import { NamePickerModal } from "../modals/NamePickerModal";
-import { scheduleNameOptions } from "../lib/schedule-options";
 
 type ScheduleOption = Omit<ScheduleGame, "responses">;
 
@@ -35,7 +32,7 @@ function compareSchedules(a: ScheduleOption, b: ScheduleOption): number {
 
 /**
  * 左側（スマホでは折りたたみ）の試合情報パネル。
- * 大会名と相手チーム名は候補から選ぶ方式なので、押されたらモーダルを開くだけにしています。
+ * 対象試合を選び、試合情報の編集はスケジュールに引き継ぎます。
  */
 export function MatchInfoPanel({
   data,
@@ -45,10 +42,6 @@ export function MatchInfoPanel({
   edit,
   infoOpen,
   onToggleInfo,
-  tournamentPickerOpen,
-  onOpenTournamentPicker,
-  teamPickerOpen,
-  onOpenTeamPicker,
 }: {
   data: TeamData;
   scheduleOptions: ScheduleOption[];
@@ -57,17 +50,8 @@ export function MatchInfoPanel({
   edit: (fn: (d: TeamData) => TeamData) => void;
   infoOpen: boolean;
   onToggleInfo: () => void;
-  tournamentPickerOpen: boolean;
-  onOpenTournamentPicker: () => void;
-  teamPickerOpen: boolean;
-  onOpenTeamPicker: () => void;
 }) {
-  const [locationPickerOpen, setLocationPickerOpen] = useState(false);
   const schedules = scheduleOptions.filter((game) => game.date === data.date).sort(compareSchedules);
-  const linked = data.scheduleId !== null;
-  const detailsReadOnly = readOnly || linked;
-  const links = mapLinks(data);
-  const locations = scheduleNameOptions(scheduleOptions, { title: [], opponent: [], location: [data.location] }).location;
 
   const changeDate = (date: string) => {
     if (!date) return;
@@ -121,7 +105,7 @@ export function MatchInfoPanel({
               if (game) edit((current) => applySchedule(current, game));
             }}
           >
-            <option value="" disabled>{schedules.length ? "予定を選択" : "予定はありません（手入力）"}</option>
+            <option value="" disabled>{schedules.length ? "予定を選択" : "予定はありません"}</option>
             {schedules.map((game) => (
               <option key={game.id} value={game.id}>
                 {game.startTime || "時刻未定"} · {game.title || "試合"}{game.opponent ? ` vs ${game.opponent}` : ""}
@@ -134,77 +118,6 @@ export function MatchInfoPanel({
           <CalendarDays size={17} />
           {readOnly ? "スケジュールを見る" : "スケジュールで編集"}
         </button>
-
-        <label>
-          大会名
-          <button
-            className="combobox-trigger"
-            aria-haspopup="dialog"
-            aria-expanded={!detailsReadOnly && tournamentPickerOpen}
-            disabled={detailsReadOnly}
-            onClick={onOpenTournamentPicker}
-          >
-            <span className={!data.tournament ? "placeholder" : ""}>
-              {data.tournament || (detailsReadOnly ? "未設定" : "大会を検索・追加")}
-            </span>
-            {!detailsReadOnly && <ChevronDown size={16} />}
-          </button>
-        </label>
-
-        <label>
-          相手チーム名
-          <button
-            className="combobox-trigger"
-            aria-haspopup="dialog"
-            aria-expanded={!detailsReadOnly && teamPickerOpen}
-            disabled={detailsReadOnly}
-            onClick={onOpenTeamPicker}
-          >
-            <span className={!data.opponent ? "placeholder" : ""}>
-              {data.opponent || (detailsReadOnly ? "未設定" : "チームを検索・追加")}
-            </span>
-            {!detailsReadOnly && <ChevronDown size={16} />}
-          </button>
-        </label>
-
-        <label>
-          開始時刻
-          <Input
-            type="time"
-            value={data.startTime}
-            disabled={detailsReadOnly}
-            onChange={(e) => edit(setFieldUpdater("startTime", e.target.value))}
-          />
-        </label>
-
-        <label>
-          場所
-          <button
-            type="button"
-            className="combobox-trigger"
-            aria-haspopup="dialog"
-            aria-expanded={!detailsReadOnly && locationPickerOpen}
-            disabled={detailsReadOnly}
-            onClick={() => setLocationPickerOpen(true)}
-          >
-            <span className={data.location ? "" : "placeholder"}>{data.location || (detailsReadOnly ? "未設定" : "場所を検索・追加")}</span>
-            {!detailsReadOnly && <ChevronDown size={16} />}
-          </button>
-        </label>
-
-        {(links || data.mapUrl) && (
-          <div className="mb-5 flex flex-wrap gap-3 text-sm text-[#0876c9]" aria-label="会場の地図">
-            {data.mapUrl && /^https?:\/\//i.test(data.mapUrl) && (
-              <a href={data.mapUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 underline">
-                <MapPin size={15} />登録した地図
-              </a>
-            )}
-            {links && <>
-              <a href={links.google} target="_blank" rel="noopener noreferrer" className="underline">Google マップ</a>
-              <a href={links.apple} target="_blank" rel="noopener noreferrer" className="underline">Apple マップ</a>
-            </>}
-          </div>
-        )}
 
         <label>
           自チーム名
@@ -235,19 +148,6 @@ export function MatchInfoPanel({
           </div>
         </div>
       </div>
-      <NamePickerModal
-        open={!detailsReadOnly && locationPickerOpen}
-        onClose={() => setLocationPickerOpen(false)}
-        title="場所を選択"
-        description="登録済みの場所を検索、または新しい球場名・住所を追加できます。"
-        placeholder="球場名・住所を検索・入力"
-        searchLabel="場所を検索"
-        emptyMessage="球場名や住所を入力すると追加できます。"
-        options={locations}
-        maxLength={200}
-        allowClear
-        onSelect={(name) => { edit(setFieldUpdater("location", name)); setLocationPickerOpen(false); }}
-      />
     </aside>
   );
 }

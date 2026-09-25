@@ -12,6 +12,7 @@ import {
   upcomingSaturday,
   type ScheduleGame,
   type ScheduleResponse,
+  type ScheduleGameStatus,
 } from "@/lib/schedule";
 import { LoadingState } from "../common/LoadingState";
 import { Modal } from "../common/Modal";
@@ -20,12 +21,31 @@ import { NamePickerModal } from "../modals/NamePickerModal";
 import { scheduleNameOptions, type ScheduleNameOptions } from "../lib/schedule-options";
 import { useScheduleData } from "../hooks/useScheduleData";
 import type { SaveState } from "../types";
+import { ScheduleNotices } from "./ScheduleNotices";
 
 const ATTENDANCE = [
   { status: "attending", label: "参加", symbol: "○" },
   { status: "absent", label: "不参加", symbol: "×" },
   { status: "undecided", label: "未定", symbol: "△" },
 ] as const;
+
+const GAME_STATUSES: { status: ScheduleGameStatus; label: string }[] = [
+  { status: "unconfirmed", label: "未確定" },
+  { status: "proposed", label: "打診中" },
+  { status: "confirmed", label: "確定" },
+];
+const START_TIMES = Array.from({ length: 25 }, (_, index) => `${String(7 + Math.floor(index / 2)).padStart(2, "0")}:${index % 2 ? "30" : "00"}`);
+type ResponseInput = Pick<ScheduleResponse, "status" | "comment">;
+
+export type ScheduleEditorRequest = {
+  requestId: string;
+  gameId: string | null;
+  date: string;
+  startTime: string;
+  title: string;
+  opponent: string;
+  location: string;
+};
 
 const weekday = new Intl.DateTimeFormat("ja-JP", { weekday: "short", timeZone: "Asia/Tokyo" });
 
@@ -53,7 +73,7 @@ function ResponseEditor({
   player: Pick<Player, "id" | "name">;
   response?: ScheduleResponse;
   disabled: boolean;
-  onChange: (response: ScheduleResponse) => void;
+  onChange: (response: ResponseInput) => void;
 }) {
   const commentId = `schedule-comment-${gameId}-${player.id}`;
   return (
@@ -100,7 +120,7 @@ function GameCard({ game, players, member, featured, expanded, onToggle, disable
   onToggle: () => void;
   disabled: boolean;
   onEdit?: () => void;
-  onResponse: (playerId: string, response: ScheduleResponse) => void;
+  onResponse: (playerId: string, response: ResponseInput) => void;
 }) {
   const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
   const detailsId = useId();
@@ -118,7 +138,7 @@ function GameCard({ game, players, member, featured, expanded, onToggle, disable
           <span className="schedule-game-heading-copy">
             {featured && <span className="schedule-featured-label">次の土曜日</span>}
             <span className="schedule-game-date"><CalendarDays size={16} aria-hidden="true" /><time dateTime={game.date}>{formatDate(game.date)}</time>{game.startTime && <span>{game.startTime}</span>}</span>
-            <strong>{game.title || "大会名未設定"}</strong>
+            <span className="schedule-game-title"><strong>{game.title || "大会名未設定"}</strong><span className={`schedule-game-status ${game.status}`}>{GAME_STATUSES.find((entry) => entry.status === game.status)?.label}</span></span>
             <span className="schedule-game-summary-info">{game.opponent ? `vs ${game.opponent}` : "対戦相手未定"}{game.location && ` ／ ${game.location}`}</span>
           </span>
           <span className="schedule-game-summary-end"><span className={`schedule-status-badge ${ownResponse?.status ?? "unanswered"}`}>{ownStatus}<span className="sr-only">（あなたの出欠）</span></span><ChevronDown size={19} aria-hidden="true" /></span>
@@ -135,13 +155,12 @@ function GameCard({ game, players, member, featured, expanded, onToggle, disable
         {game.opponent && <p><Users size={16} aria-hidden="true" /><span>対戦相手：{game.opponent}</span></p>}
         <p><MapPin size={16} aria-hidden="true" /><span>{game.location || "場所は未定"}</span></p>
       </div>
-      {(maps || game.mapUrl) && (
+      {maps && (
         <div className="schedule-map-links" aria-label="試合会場の地図">
           {maps && <>
             <a href={maps.google} target="_blank" rel="noopener noreferrer">Googleマップ<ExternalLink size={13} aria-hidden="true" /><span className="sr-only">（新しいタブで開く）</span></a>
             <a href={maps.apple} target="_blank" rel="noopener noreferrer">Appleマップ<ExternalLink size={13} aria-hidden="true" /><span className="sr-only">（新しいタブで開く）</span></a>
           </>}
-          {game.mapUrl && <a href={game.mapUrl} target="_blank" rel="noopener noreferrer">共有された地図<ExternalLink size={13} aria-hidden="true" /><span className="sr-only">（新しいタブで開く）</span></a>}
         </div>
       )}
       {ownPlayer && (
@@ -181,10 +200,10 @@ function GameCard({ game, players, member, featured, expanded, onToggle, disable
   );
 }
 
-type GameFields = Pick<ScheduleGame, "date" | "startTime" | "title" | "opponent" | "location" | "mapUrl">;
+type GameFields = Pick<ScheduleGame, "date" | "startTime" | "title" | "opponent" | "location" | "status">;
 
 function gameFields(game: GameFields): GameFields {
-  return { date: game.date, startTime: game.startTime, title: game.title, opponent: game.opponent, location: game.location, mapUrl: game.mapUrl };
+  return { date: game.date, startTime: game.startTime, title: game.title, opponent: game.opponent, location: game.location, status: game.status };
 }
 
 const NAME_FIELDS = [
@@ -193,21 +212,23 @@ const NAME_FIELDS = [
   { field: "location", label: "場所", placeholder: "球場名・住所を検索・追加", maxLength: SCHEDULE_LIMITS.location },
 ] as const;
 
-function GameEditor({ game, defaultDate, visible, saveState, saveError, nameOptions, onSave, onClose }: {
+function GameEditor({ game, defaultDate, defaults, visible, saveState, saveError, nameOptions, onSave, onDelete, onClose }: {
   game?: ScheduleGame;
   defaultDate: string;
+  defaults: GameFields | null;
   visible: boolean;
   saveState: SaveState;
   saveError: string;
   nameOptions: ScheduleNameOptions;
   onSave: (id: string, values: GameFields) => void;
+  onDelete: (id: string) => void;
   onClose: () => void;
 }) {
   const [id] = useState(() => game?.id ?? createEntityId());
   const [picker, setPicker] = useState<keyof ScheduleNameOptions | null>(null);
   const pickerField = NAME_FIELDS.find(({ field }) => field === picker);
-  const [draft, setDraft] = useState<GameFields>(() => game ? gameFields(game) : {
-    date: defaultDate, startTime: "", title: "", opponent: "", location: "", mapUrl: "",
+  const [draft, setDraft] = useState<GameFields>(() => game ? gameFields(game) : defaults ?? {
+    date: defaultDate, startTime: "", title: "", opponent: "", location: "", status: "unconfirmed",
   });
   const [initial] = useState(() => JSON.stringify(draft));
   const [submitted, setSubmitted] = useState<string | null>(null);
@@ -222,7 +243,7 @@ function GameEditor({ game, defaultDate, visible, saveState, saveError, nameOpti
     if (hasLocalChanges && !window.confirm("保存していない予定の入力を破棄して閉じますか？")) return;
     onClose();
   };
-  const update = (field: keyof GameFields, value: string) => {
+  const update = <K extends keyof GameFields>(field: K, value: GameFields[K]) => {
     setDraft((current) => ({ ...current, [field]: value }));
     setFormError("");
   };
@@ -233,16 +254,7 @@ function GameEditor({ game, defaultDate, visible, saveState, saveError, nameOpti
       setFormError("試合日を入力してください。");
       return;
     }
-    const values = { ...draft, title: draft.title.trim(), opponent: draft.opponent.trim(), location: draft.location.trim(), mapUrl: draft.mapUrl.trim() };
-    if (values.mapUrl) {
-      try {
-        const url = new URL(values.mapUrl);
-        if (!/^https?:\/\//i.test(values.mapUrl) || !["https:", "http:"].includes(url.protocol) || !url.hostname || url.username || url.password) throw new Error();
-      } catch {
-        setFormError("地図リンクには https:// または http:// で始まるURLを入力してください。");
-        return;
-      }
-    }
+    const values = { ...draft, title: draft.title.trim(), opponent: draft.opponent.trim(), location: draft.location.trim() };
     setFormError("");
     setDraft(values);
     setSubmitted(JSON.stringify(values));
@@ -254,8 +266,9 @@ function GameEditor({ game, defaultDate, visible, saveState, saveError, nameOpti
       <form className="schedule-game-form" onSubmit={submit}>
         <div className="schedule-date-time-fields">
           <label htmlFor="schedule-date">試合日 <span className="schedule-required">必須</span><input id="schedule-date" type="date" required value={draft.date} onChange={(event) => update("date", event.target.value)} /></label>
-          <label htmlFor="schedule-time">開始時間 <span>任意</span><input id="schedule-time" type="time" value={draft.startTime} onChange={(event) => update("startTime", event.target.value)} /></label>
+          <label htmlFor="schedule-time">開始時刻 <span>任意</span><select id="schedule-time" value={draft.startTime} onChange={(event) => update("startTime", event.target.value)}><option value="">時刻未定</option>{draft.startTime && !START_TIMES.includes(draft.startTime) && <option value={draft.startTime}>{draft.startTime}（登録済み）</option>}{START_TIMES.map((time) => <option key={time} value={time}>{time}</option>)}</select></label>
         </div>
+        <div className="schedule-status-field"><span>予定の状況</span><div className="schedule-game-status-buttons" role="group" aria-label="予定の状況">{GAME_STATUSES.map(({ status, label }) => <button key={status} type="button" className={status} aria-pressed={draft.status === status} onClick={() => update("status", status)}>{label}{draft.status === status && <Check size={14} aria-hidden="true" />}</button>)}</div></div>
         {NAME_FIELDS.map(({ field, label, placeholder }) => (
           <label key={field} htmlFor={`schedule-${field}`}>{label} <span>任意</span>
             <button type="button" id={`schedule-${field}`} className="combobox-trigger schedule-name-trigger" aria-haspopup="dialog" aria-expanded={picker === field} onClick={() => setPicker(field)}>
@@ -265,7 +278,6 @@ function GameEditor({ game, defaultDate, visible, saveState, saveError, nameOpti
             {field === "location" && <small>球場名や住所から地図を開けます。</small>}
           </label>
         ))}
-        <label htmlFor="schedule-map-url">地図リンク <span>任意</span><input id="schedule-map-url" type="url" inputMode="url" maxLength={SCHEDULE_LIMITS.mapUrl} placeholder="https://…" autoCapitalize="none" autoCorrect="off" spellCheck={false} value={draft.mapUrl} onChange={(event) => update("mapUrl", event.target.value)} /><small>地図アプリで共有したリンクを貼り付けられます。</small></label>
         {formError && <p className="schedule-form-error" role="alert">{formError}</p>}
         {saveError && <div className="schedule-form-error" role="alert"><p>{saveError}</p><p>入力内容はこの画面に残っています。{blocked ? "閉じて再読み込みの案内を確認してください。" : "もう一度「予定を保存」を押してください。"}</p></div>}
         {submitted && !hasLocalChanges && <p className={`schedule-form-save-state ${saveState}`} role="status"><SaveStateLabel state={saveState} /></p>}
@@ -273,6 +285,7 @@ function GameEditor({ game, defaultDate, visible, saveState, saveError, nameOpti
           <button type="submit" className="primary" disabled={blocked || pending || (submitted === draftJson && saveState === "saved")}>{pending ? "保存中…" : "予定を保存"}</button>
           <button type="button" className="secondary" onClick={close}>閉じる</button>
         </div>
+        {(game || (submitted && saveState === "saved")) && <button type="button" className="schedule-delete-button" disabled={blocked || pending} onClick={() => onDelete(id)}>この予定を削除</button>}
       </form>
     </Modal>
     {pickerField && <NamePickerModal
@@ -292,7 +305,7 @@ function GameEditor({ game, defaultDate, visible, saveState, saveError, nameOpti
   </>);
 }
 
-export function ScheduleView({ players, member, nameOptions, appNavigation, onSaveStateChange, onSaved, onOpenSchedule, remoteRevision, isVisible = true }: {
+export function ScheduleView({ players, member, nameOptions, appNavigation, onSaveStateChange, onSaved, onOpenSchedule, remoteRevision, editorRequest, isVisible = true }: {
   players: Player[];
   member: AuthMember;
   nameOptions: ScheduleNameOptions;
@@ -301,12 +314,15 @@ export function ScheduleView({ players, member, nameOptions, appNavigation, onSa
   onSaved?: () => void;
   onOpenSchedule: () => void;
   remoteRevision: number;
+  editorRequest: ScheduleEditorRequest | null;
   isVisible?: boolean;
 }) {
   const schedule = useScheduleData();
   const [editor, setEditor] = useState<ScheduleGame | "new" | null>(null);
   const [defaultDate, setDefaultDate] = useState(upcomingSaturday);
-  const [reminderDismissed, setReminderDismissed] = useState(false);
+  const [newGameDefaults, setNewGameDefaults] = useState<GameFields | null>(null);
+  const [editorRequestError, setEditorRequestError] = useState("");
+  const handledRequest = useRef("");
   const [expandedGameId, setExpandedGameId] = useState<string | null>(null);
   const requestedRevision = useRef(-1);
   const previousSaveState = useRef<SaveState>("saved");
@@ -329,14 +345,30 @@ export function ScheduleView({ players, member, nameOptions, appNavigation, onSa
     void refreshSchedule();
   }, [remoteRevision, schedule.revision, schedule.loading, schedule.error, schedule.saveState, editor, refreshSchedule]);
 
+  const loadGame = schedule.loadGame;
+  useEffect(() => {
+    if (!editorRequest || !isVisible || !member.canEditLineup || schedule.loading || schedule.saveState !== "saved" || editor || handledRequest.current === editorRequest.requestId) return;
+    handledRequest.current = editorRequest.requestId;
+    void (async () => {
+      if (editorRequest.gameId) {
+        const game = await loadGame(editorRequest.gameId);
+        if (game) { setEditorRequestError(""); setEditor(game); setExpandedGameId(game.id); }
+        else setEditorRequestError("対象の予定を開けませんでした。最新の内容を読み込み、オーダーからもう一度開いてください。");
+      } else {
+        setNewGameDefaults({ date: editorRequest.date, startTime: editorRequest.startTime, title: editorRequest.title, opponent: editorRequest.opponent, location: editorRequest.location, status: "unconfirmed" });
+        setDefaultDate(editorRequest.date);
+        setEditor("new");
+      }
+    })();
+  }, [editorRequest, isVisible, member.canEditLineup, schedule.loading, schedule.saveState, editor, loadGame]);
+
   const sortedPlayers = [...players].sort((a, b) => a.number.localeCompare(b.number, "ja", { numeric: true }) || a.name.localeCompare(b.name, "ja"));
   const sortedGames = [...schedule.data.games].sort((a, b) => a.date.localeCompare(b.date) || (a.startTime || "99:99").localeCompare(b.startTime || "99:99") || a.id.localeCompare(b.id));
-  const unansweredGames = sortedGames.filter((game) => game.date >= today && !game.responses[member.id] && schedule.loginGames?.some((initial) => initial.id === game.id && !initial.responses[member.id]));
   const saturdayGames = sortedGames.filter((game) => game.date === saturday);
   const upcomingGames = sortedGames.filter((game) => game.date >= today && game.date !== saturday);
   const pastGames = sortedGames.filter((game) => game.date < today).reverse();
   const options = scheduleNameOptions(schedule.data.games, nameOptions);
-  const addGame = (date = saturday) => { setDefaultDate(date); setEditor("new"); };
+  const addGame = (date = saturday) => { setNewGameDefaults(null); setDefaultDate(date); setEditor("new"); };
   const reload = () => {
     if (schedule.saveState === "saving") return;
     if (schedule.saveState !== "saved" && !window.confirm("この画面の未保存の出欠・コメント・予定の変更を破棄して、最新の内容を読み込みますか？必要な入力内容は先に控えてください。")) return;
@@ -347,15 +379,21 @@ export function ScheduleView({ players, member, nameOptions, appNavigation, onSa
     schedule.edit((current) => {
       const index = current.games.findIndex((game) => game.id === id);
       if (index >= 0) current.games[index] = { ...current.games[index], ...values };
-      else current.games.push({ id, ...values, responses: {} });
+      else current.games.push({ id, ...values, mapUrl: "", detailsRevision: 1, responses: {} });
       return current;
     });
   };
-  const updateResponse = (gameId: string, playerId: string, response: ScheduleResponse) => {
+  const deleteGame = (id: string) => {
+    if (!member.canEditLineup || blocked || schedule.saveState === "saving") return;
+    if (!window.confirm("この予定を削除しますか？この試合の出欠・コメントも削除されます。")) return;
+    schedule.edit((current) => ({ games: current.games.filter((game) => game.id !== id) }));
+    setEditor(null);
+  };
+  const updateResponse = (gameId: string, playerId: string, response: ResponseInput) => {
     if (blocked || (!member.isAdmin && playerId !== member.id)) return;
     schedule.edit((current) => {
       const game = current.games.find((item) => item.id === gameId);
-      if (game) game.responses[playerId] = response;
+      if (game) game.responses[playerId] = { ...response, confirmedRevision: game.detailsRevision };
       return current;
     });
   };
@@ -363,24 +401,12 @@ export function ScheduleView({ players, member, nameOptions, appNavigation, onSa
 
   return (
     <section className="schedule-page">
-      <Modal
-        open={!reminderDismissed && !schedule.loading && !schedule.error && unansweredGames.length > 0}
-        onClose={() => setReminderDismissed(true)}
-        title="出欠が未入力の試合があります！"
-        description={`${unansweredGames.length}件の試合が未回答です。予定が決まっていない場合も「未定」で回答できます。`}
-      >
-        <ul className="schedule-reminder-list">
-          {unansweredGames.slice(0, 3).map((game) => <li key={game.id}><strong>{formatDate(game.date)} {game.startTime}</strong><span>{game.title || "試合予定"}{game.opponent && ` ／ ${game.opponent}`}</span></li>)}
-        </ul>
-        <div className="schedule-form-actions">
-          <button type="button" className="primary" onClick={() => { setReminderDismissed(true); setExpandedGameId(unansweredGames[0]?.id ?? null); onOpenSchedule(); }}>出欠を入力する</button>
-          <button type="button" className="secondary" onClick={() => setReminderDismissed(true)}>あとで</button>
-        </div>
-      </Modal>
+      {schedule.loginGames && <ScheduleNotices games={schedule.data.games} initialGames={schedule.loginGames} memberId={member.id} suspended={editor !== null || schedule.loading} saveState={schedule.saveState} error={schedule.error} onResponse={(id, response) => updateResponse(id, member.id, response)} onRetry={schedule.retrySave} onOpenSchedule={(id) => { setExpandedGameId(id); onOpenSchedule(); }} />}
       <header className="page-heading schedule-page-heading">
         <div><p className="eyebrow">TEAM SCHEDULE</p><h1>スケジュール</h1><p>試合の予定を確認して、出欠を回答しましょう。</p></div>
       </header>
       {appNavigation}
+      {editorRequestError && <div className="panel schedule-error" role="alert">{editorRequestError}</div>}
       {schedule.loading ? <LoadingState label="スケジュールを読み込んでいます…" /> : schedule.error && schedule.saveState === "saved" ? (
         <div className="panel schedule-error" role="alert"><p>{schedule.error}</p><button type="button" className="secondary" onClick={reload}>再読み込み</button></div>
       ) : <>
@@ -400,9 +426,15 @@ export function ScheduleView({ players, member, nameOptions, appNavigation, onSa
           </div>}
           {upcomingGames.length > 0 && <><h2 className="schedule-section-title">これからの予定</h2>{upcomingGames.map(card)}</>}
         </div>
-        {pastGames.length > 0 && <details className="schedule-past"><summary>過去の予定 <span>{pastGames.length}件</span></summary><div className="schedule-game-list">{pastGames.map(card)}</div></details>}
+        <details className="schedule-past" onToggle={(event) => { if (event.currentTarget.open && !schedule.pastLoaded && !schedule.pastLoading) void schedule.loadPast(); }}>
+          <summary>過去の予定</summary>
+          <div className="schedule-game-list">{pastGames.map(card)}</div>
+          {schedule.pastError && <p className="schedule-form-error" role="alert">{schedule.pastError}</p>}
+          {schedule.pastLoaded && !pastGames.length && <p className="schedule-autosave-note">過去の予定はありません。</p>}
+          {(schedule.hasMorePast || schedule.pastError) && <button type="button" className="secondary schedule-load-more" disabled={schedule.pastLoading || blocked || schedule.saveState !== "saved"} onClick={() => void schedule.loadPast()}>{schedule.pastLoading ? "読み込み中…" : schedule.pastError ? "再試行" : "過去の予定をさらに表示"}</button>}
+        </details>
       </>}
-      {editor !== null && <GameEditor key={editor === "new" ? "new" : editor.id} game={editor === "new" ? undefined : editor} defaultDate={defaultDate} visible={isVisible} saveState={schedule.saveState} saveError={saveFailed ? schedule.error : ""} nameOptions={options} onSave={saveGame} onClose={() => setEditor(null)} />}
+      {editor !== null && <GameEditor key={editor === "new" ? "new" : editor.id} game={editor === "new" ? undefined : editor} defaultDate={defaultDate} defaults={newGameDefaults} visible={isVisible} saveState={schedule.saveState} saveError={saveFailed ? schedule.error : ""} nameOptions={options} onSave={saveGame} onDelete={deleteGame} onClose={() => setEditor(null)} />}
     </section>
   );
 }

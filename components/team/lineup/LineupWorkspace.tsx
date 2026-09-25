@@ -20,10 +20,6 @@ export function LineupWorkspace({
   absent,
   infoOpen,
   onToggleInfo,
-  tournamentPickerOpen,
-  onOpenTournamentPicker,
-  teamPickerOpen,
-  onOpenTeamPicker,
   onPickPlayer,
   onPickPosition,
   onEditPlayer,
@@ -40,10 +36,6 @@ export function LineupWorkspace({
   absent: Player[];
   infoOpen: boolean;
   onToggleInfo: () => void;
-  tournamentPickerOpen: boolean;
-  onOpenTournamentPicker: () => void;
-  teamPickerOpen: boolean;
-  onOpenTeamPicker: () => void;
   onPickPlayer: (target: string) => void;
   onPickPosition: (index: number) => void;
   onEditPlayer: (player: Player) => void;
@@ -59,10 +51,6 @@ export function LineupWorkspace({
         edit={edit}
         infoOpen={infoOpen}
         onToggleInfo={onToggleInfo}
-        tournamentPickerOpen={tournamentPickerOpen}
-        onOpenTournamentPicker={onOpenTournamentPicker}
-        teamPickerOpen={teamPickerOpen}
-        onOpenTeamPicker={onOpenTeamPicker}
       />
       <OrderPanel
         data={data}

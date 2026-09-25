@@ -1,9 +1,13 @@
 export const ATTENDANCE_STATUSES = ["attending", "absent", "undecided"] as const;
 export type AttendanceStatus = (typeof ATTENDANCE_STATUSES)[number];
 
+export const SCHEDULE_GAME_STATUSES = ["unconfirmed", "proposed", "confirmed"] as const;
+export type ScheduleGameStatus = (typeof SCHEDULE_GAME_STATUSES)[number];
+
 export type ScheduleResponse = {
     status: AttendanceStatus;
     comment: string;
+    confirmedRevision: number;
 };
 
 export type ScheduleGame = {
@@ -14,6 +18,8 @@ export type ScheduleGame = {
     opponent: string;
     location: string;
     mapUrl: string;
+    status: ScheduleGameStatus;
+    detailsRevision: number;
     responses: Record<string, ScheduleResponse>;
 };
 
@@ -46,6 +52,13 @@ function stringField(value: unknown, field: string, maxLength: number, required 
     return text;
 }
 
+function revisionField(value: unknown, field: string, minimum: number): number {
+    if (typeof value !== "number" || !Number.isSafeInteger(value) || value < minimum) {
+        throw new Error(`Invalid ${field}`);
+    }
+    return value;
+}
+
 export function validateScheduleData(value: unknown): ScheduleData {
     if (!record(value) || !Array.isArray(value.games) || value.games.length > SCHEDULE_LIMITS.games) {
         throw new Error("Invalid schedule data");
@@ -57,6 +70,12 @@ export function validateScheduleData(value: unknown): ScheduleData {
         const id = stringField(raw.id, "schedule id", SCHEDULE_LIMITS.id, true);
         if (ids.has(id)) throw new Error("Duplicate schedule id");
         ids.add(id);
+
+        if (typeof raw.status !== "string"
+            || !SCHEDULE_GAME_STATUSES.includes(raw.status as ScheduleGameStatus)) {
+            throw new Error("Invalid schedule status");
+        }
+        const detailsRevision = revisionField(raw.detailsRevision, "schedule details revision", 1);
 
         const date = stringField(raw.date, "schedule date", 10, true);
         if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date.startsWith("0000-")) {
@@ -100,6 +119,7 @@ export function validateScheduleData(value: unknown): ScheduleData {
             return [playerId, {
                 status: response.status as AttendanceStatus,
                 comment: stringField(response.comment, "response comment", SCHEDULE_LIMITS.comment),
+                confirmedRevision: revisionField(response.confirmedRevision, "response confirmed revision", 0),
             }];
         }));
 
@@ -111,6 +131,8 @@ export function validateScheduleData(value: unknown): ScheduleData {
             opponent: stringField(raw.opponent, "opponent", SCHEDULE_LIMITS.opponent),
             location: stringField(raw.location, "location", SCHEDULE_LIMITS.location),
             mapUrl,
+            status: raw.status as ScheduleGameStatus,
+            detailsRevision,
             responses,
         };
     });
@@ -129,7 +151,7 @@ export function upcomingSaturday(now: Date = new Date()): string {
     return date.toISOString().slice(0, 10);
 }
 
-/** A pasted map URL is displayed separately; it is never used as a place query. */
+/** Open a map search using the place name, independent of the legacy map URL. */
 export function mapLinks(game: Pick<ScheduleGame, "location">): { google: string; apple: string } | null {
     const location = game.location.trim();
     if (!location) return null;

@@ -25,7 +25,12 @@
 .schedule-game-summary[aria-expanded="true"] .schedule-game-summary-end > svg { transform: rotate(180deg); }
 .schedule-game-heading-copy { display: block; min-width: 0; }
 .schedule-game-heading-copy > .schedule-featured-label { display: block; }
-.schedule-game-heading-copy > strong { display: block; color: #243f54; font-size: 17px; line-height: 1.5; overflow-wrap: anywhere; }
+.schedule-game-title { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.schedule-game-title > strong { color: #243f54; font-size: 17px; line-height: 1.5; overflow-wrap: anywhere; }
+.schedule-game-status { flex-shrink: 0; padding: 3px 7px; border-radius: 5px; font-size: 10px; font-weight: 700; }
+.schedule-game-status.unconfirmed { background: #edf1f6; color: #61788b; }
+.schedule-game-status.proposed { background: #fff1dc; color: #aa6317; }
+.schedule-game-status.confirmed { background: #e5f2fc; color: #166da8; }
 .schedule-game-summary-info { display: block; margin-top: 4px; color: #728497; font-size: 12px; font-weight: 400; overflow-wrap: anywhere; }
 .schedule-game-details { padding: 16px 20px 20px; }
 .schedule-featured-label { margin: 0 0 8px; color: #0876c9; font-size: 12px; font-weight: 800; }
@@ -97,7 +102,20 @@
 .schedule-error-actions button { min-height: 44px; font-size: 12px; }
 .schedule-game-form { display: grid; gap: 16px; }
 .schedule-date-time-fields { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 12px; }
-.schedule-game-form input { display: block; margin-top: 7px; font-size: 16px; font-weight: 400; }
+.schedule-date-time-fields > label { min-width: 0; }
+.schedule-game-form input, .schedule-game-form select { display: block; width: 100%; min-width: 0; min-height: 48px; margin-top: 7px; font-size: 16px; font-weight: 400; }
+.schedule-game-form select { padding: 10px; border: 1px solid #d5e0e9; border-radius: 8px; background: #fff; color: #344f67; }
+.schedule-status-field > span { color: #344f67; font-size: 13px; font-weight: 700; }
+.schedule-game-status-buttons { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; margin-top: 8px; }
+.schedule-game-status-buttons button { display: flex; align-items: center; justify-content: center; gap: 5px; min-height: 46px; padding: 8px 4px; border: 1px solid #d5e0e9; border-radius: 9px; background: #fff; color: #718396; font-size: 14px; font-weight: 700; }
+.schedule-game-status-buttons button[aria-pressed="true"] { box-shadow: inset 0 0 0 1px currentColor; }
+.schedule-game-status-buttons .unconfirmed[aria-pressed="true"] { color: #61788b; background: #edf1f6; border-color: #61788b; }
+.schedule-game-status-buttons .proposed[aria-pressed="true"] { color: #aa6317; background: #fff1dc; border-color: #aa6317; }
+.schedule-game-status-buttons .confirmed[aria-pressed="true"] { color: #166da8; background: #e5f2fc; border-color: #166da8; }
+.schedule-delete-button { min-height: 44px; margin-top: 8px; border-top: 1px solid #ecd8da; color: #ac3d48; font-size: 13px; }
+.schedule-load-more { width: 100%; margin-top: 14px; }
+.schedule-reminder-list .schedule-attendance-buttons { margin: 9px 0 0; }
+.schedule-changed-label { color: #aa6317; font-size: 12px; }
 .schedule-name-trigger { width: 100%; margin-top: 7px; min-height: 48px; font-size: 16px; font-weight: 400; }
 .schedule-name-trigger > span { overflow-wrap: anywhere; }
 .schedule-name-trigger > svg { flex-shrink: 0; }
@@ -113,7 +131,7 @@
 @media (max-width: 600px) {
   .schedule-game-summary { padding: 13px 14px; }
   .schedule-game-summary-end { flex-direction: column; gap: 8px; }
-  .schedule-game-heading-copy > strong { font-size: 16px; }
+  .schedule-game-title > strong { font-size: 16px; }
   .schedule-game-details { padding: 14px; }
   .schedule-game-date { font-size: 12px; }
   .schedule-edit-button { min-width: 44px; padding: 8px; }
