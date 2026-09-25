@@ -12,6 +12,7 @@ export const POSITIONS = [
     "DH",
 ] as const;
 export type Position = (typeof POSITIONS)[number];
+export type LineupMode = "normal" | "dh" | "all";
 export type Player = { id: string; name: string; number: string; kana: string };
 export type Slot = { playerId: string | null; position: Position };
 export type TeamData = {
@@ -22,7 +23,7 @@ export type TeamData = {
     date: string;
     opponent: string;
     opponents: string[];
-    mode: "normal" | "dh";
+    mode: LineupMode;
     count: number;
     players: Player[];
     slots: Slot[];
@@ -30,6 +31,18 @@ export type TeamData = {
     benchOrder: string[];
     absentIds: string[];
 };
+export const MIN_BATTING_SLOTS = 9;
+export const MAX_LINEUP_PLAYERS = 30;
+export const MAX_PDF_LINEUP_PLAYERS = 10;
+
+export function lineupCapacity(data: TeamData): number {
+    return data.slots.length + (data.mode === "dh" ? 1 : 0);
+}
+
+export function canExportLineupPdf(data: TeamData): boolean {
+    if (data.mode === "all") return false;
+    return lineupCapacity(data) <= MAX_PDF_LINEUP_PLAYERS;
+}
 export function nextSaturday(now = new Date()) {
     const date = new Date(now);
     date.setDate(date.getDate() + ((6 - date.getDay() + 7) % 7 || 7));
@@ -84,37 +97,148 @@ export function absentPlayers(data: TeamData) {
 }
 export function changeMode(
     data: TeamData,
-    mode: "normal" | "dh",
-    count = 9,
+    mode: LineupMode,
+    count = 10,
 ): TeamData {
-    count = 9;
-    let slots = data.slots.map((s) => ({ ...s }));
+    let slots = data.slots.map((slot) => ({ ...slot }));
     let pitcher = data.pitcher;
-    if (mode === "dh" && data.mode === "normal") {
-        const i = slots.findIndex((s) => s.position === "投");
-        pitcher = slots[i].playerId;
-        slots[i] = { playerId: null, position: "DH" };
-    }
-    if (mode === "normal" && data.mode === "dh") {
-        const firstDH = slots.findIndex((s) => s.position === "DH");
-        slots[firstDH] = { playerId: pitcher, position: "投" };
-        pitcher = null;
-        slots = slots.filter((s) => s.position !== "DH");
-    }
-    if (mode === "dh") {
-        while (slots.length > count) {
-            const i = slots.findLastIndex((s) => s.position === "DH");
-            slots.splice(i, 1);
+
+    /*
+     * =========================
+     * 9人制
+     * =========================
+     */
+    if (mode === "normal") {
+        if (data.mode === "dh") {
+            // DH制の別枠投手を打順へ戻す
+            const dhIndex = slots.findIndex((slot) => slot.position === "DH");
+
+            if (dhIndex >= 0) {
+                slots[dhIndex] = {
+                    playerId: pitcher,
+                    position: "投",
+                };
+            }
+
+            pitcher = null;
         }
-        while (slots.length < count)
-            slots.push({ playerId: null, position: "DH" });
+
+        // 全員打ちの余分なDHを削除
+        slots = slots.filter((slot) => slot.position !== "DH");
+
+        return {
+            ...data,
+            mode: "normal",
+            count: MIN_BATTING_SLOTS,
+            slots,
+            pitcher: null,
+        };
     }
+
+    /*
+     * =========================
+     * DH制
+     * 打者9人 + 投手1人 = 10人固定
+     * =========================
+     */
+    if (mode === "dh") {
+        if (data.mode === "normal") {
+            const pitcherIndex = slots.findIndex(
+                (slot) => slot.position === "投",
+            );
+
+            if (pitcherIndex >= 0) {
+                pitcher = slots[pitcherIndex].playerId;
+
+                slots[pitcherIndex] = {
+                    playerId: null,
+                    position: "DH",
+                };
+            }
+        }
+
+        if (data.mode === "all") {
+            const pitcherIndex = slots.findIndex(
+                (slot) => slot.position === "投",
+            );
+
+            if (pitcherIndex >= 0) {
+                pitcher = slots[pitcherIndex].playerId;
+
+                // 全員打ちでは投手も打順にいるので、
+                // DH制へ変更すると投手を打順から外す
+                slots.splice(pitcherIndex, 1);
+            }
+        }
+
+        // DH制は打順9人固定
+        while (slots.length > MIN_BATTING_SLOTS) {
+            const index = slots.findLastIndex((slot) => slot.position === "DH");
+
+            if (index < 0) break;
+
+            slots.splice(index, 1);
+        }
+
+        while (slots.length < MIN_BATTING_SLOTS) {
+            slots.push({
+                playerId: null,
+                position: "DH",
+            });
+        }
+
+        return {
+            ...data,
+            mode: "dh",
+            count: MIN_BATTING_SLOTS,
+            slots,
+            pitcher,
+        };
+    }
+
+    /*
+     * =========================
+     * 全員打ち
+     * 10〜30人
+     * =========================
+     */
+
+    const allCount = Math.min(MAX_LINEUP_PLAYERS, Math.max(10, count));
+
+    if (data.mode === "dh") {
+        // DH制では投手が打順外なので、
+        // 全員打ちにすると打順へ追加する
+        slots.push({
+            playerId: pitcher,
+            position: "投",
+        });
+
+        pitcher = null;
+    }
+
+    // 人数を減らす場合はDHから削る
+    while (slots.length > allCount) {
+        const index = slots.findLastIndex((slot) => slot.position === "DH");
+
+        if (index < 0) break;
+
+        slots.splice(index, 1);
+    }
+
+    // 人数を増やす場合はDH枠を追加
+    while (slots.length < allCount) {
+        slots.push({
+            playerId: null,
+            position: "DH",
+        });
+    }
+
     return {
         ...data,
-        mode,
-        count: mode === "normal" ? 9 : count,
+        mode: "all",
+        count: allCount,
         slots,
-        pitcher,
+        pitcher: null,
     };
 }
 export function swapPlayer(data: TeamData, from: string, to: string): TeamData {
@@ -171,8 +295,12 @@ const schema = z.object({
         ),
     opponent: short,
     opponents: z.array(short.min(1)).max(200),
-    mode: z.enum(["normal", "dh"]),
-    count: z.literal(9),
+    mode: z.enum(["normal", "dh", "all"]),
+    count: z
+        .number()
+        .int()
+        .min(MIN_BATTING_SLOTS)
+        .max(MAX_LINEUP_PLAYERS),
     players: z
         .array(
             z.object({
@@ -190,7 +318,8 @@ const schema = z.object({
                 position: z.enum(POSITIONS),
             }),
         )
-        .length(9),
+        .min(MIN_BATTING_SLOTS)
+        .max(MAX_LINEUP_PLAYERS),
     pitcher: z.string().uuid().nullable(),
     benchOrder: z.array(z.string().uuid()).max(30),
     absentIds: z.array(z.string().uuid()).max(30).default([]),
@@ -209,21 +338,39 @@ export function validateData(input: unknown): TeamData {
         used.some((id) => !ids.includes(id!))
     )
         throw new Error("選手が重複しているか、未登録です。");
-    if (
-        d.slots.length !== d.count ||
-        (d.mode === "normal" && (d.count !== 9 || d.pitcher !== null))
-    )
-        throw new Error("人数設定が一致しません。");
-    const required =
-        d.mode === "normal" ? POSITIONS.slice(0, 9) : POSITIONS.slice(1, 9);
-    if (
-        required.some(
-            (p) => d.slots.filter((s) => s.position === p).length !== 1,
-        ) ||
-        d.slots.filter((s) => s.position === "DH").length !==
-            (d.mode === "normal" ? 0 : d.count - 8)
-    )
-        throw new Error("守備位置が重複しています。");
+   if (
+  d.slots.length !== d.count ||
+  (d.mode === "normal" &&
+    (d.count !== 9 || d.pitcher !== null)) ||
+  (d.mode === "dh" &&
+    d.count !== 9) ||
+  (d.mode === "all" &&
+    (d.count < 10 ||
+      d.count > MAX_LINEUP_PLAYERS ||
+      d.pitcher !== null))
+) {
+  throw new Error("人数設定が一致しません。");
+}
+const required =
+  d.mode === "dh"
+    ? POSITIONS.slice(1, 9)
+    : POSITIONS.slice(0, 9);    const expectedDhCount =
+  d.mode === "normal"
+    ? 0
+    : d.mode === "dh"
+      ? 1
+      : d.count - 9;
+
+if (
+  required.some(
+    (position) =>
+      d.slots.filter((slot) => slot.position === position).length !== 1,
+  ) ||
+  d.slots.filter((slot) => slot.position === "DH").length !==
+    expectedDhCount
+) {
+  throw new Error("守備位置が重複しています。");
+}
     return normalizeData(d);
 }
 export function lineupWarnings(d: TeamData) {

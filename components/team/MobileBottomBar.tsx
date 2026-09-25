@@ -7,11 +7,15 @@ export function MobileBottomBar({
   tab,
   onToggleTab,
   pdfBusy,
+  pdfDisabled,
+  pdfDisabledReason,
   onCreatePdf,
 }: {
   tab: TeamTab;
   onToggleTab: () => void;
   pdfBusy: boolean;
+  pdfDisabled: boolean;
+  pdfDisabledReason: string;
   onCreatePdf: () => void;
 }) {
   return (
@@ -20,9 +24,14 @@ export function MobileBottomBar({
         <Users size={19} />
         {tab === "order" ? "登録情報" : "オーダー"}
       </button>
-      <button className="primary" onClick={onCreatePdf} disabled={pdfBusy}>
+      <button
+        className="primary"
+        onClick={onCreatePdf}
+        disabled={pdfBusy || pdfDisabled}
+        title={pdfDisabledReason || undefined}
+      >
         <FileDown size={18} />
-        {pdfBusy ? "作成中…" : "メンバー表作成"}
+        {pdfBusy ? "作成中…" : pdfDisabled ? "全員打ちはPDF不可" : "メンバー表作成"}
       </button>
     </div>
   );

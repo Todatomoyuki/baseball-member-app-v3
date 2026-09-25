@@ -196,6 +196,8 @@ export function TeamApp() {
           <PageHeading
             teamName={data.teamName}
             pdfBusy={pdf.busy}
+            pdfDisabled={pdf.disabled}
+            pdfDisabledReason={pdf.disabledReason}
             onCreatePdf={() => void pdf.create()}
           />
 
@@ -254,6 +256,8 @@ export function TeamApp() {
               ui.setTab(ui.tab === "order" ? "players" : "order")
             }
             pdfBusy={pdf.busy}
+            pdfDisabled={pdf.disabled}
+            pdfDisabledReason={pdf.disabledReason}
             onCreatePdf={() => void pdf.create()}
           />
         </>
@@ -282,6 +286,7 @@ export function TeamApp() {
         players={data.players}
         bench={bench}
         absent={absent}
+        slotCount={data.slots.length}
         onClose={() => ui.setPick(null)}
         onSelect={selectPlayer}
         onShiftOrder={(index, delta) => edit(shiftOrderUpdater(index, delta))}

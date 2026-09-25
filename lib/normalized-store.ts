@@ -110,7 +110,7 @@ export function decodeData(scope: DataScope, rows: Tables): ScopeData[DataScope]
       opponent: settings[5] as string,
       mode: settings[6] as TeamData["mode"],
       pitcher: settings[7] as string | null,
-      count: 9,
+      count: rows.lineup_slots.length,
       tournaments: rows.name_options.filter((row) => row[0] === "tournament").map((row) => row[1] as string),
       opponents: rows.name_options.filter((row) => row[0] === "opponent").map((row) => row[1] as string),
       players: players.map((row) => ({ id: row[0] as string, name: row[1] as string, number: row[2] as string, kana: row[3] as string })),

@@ -433,6 +433,9 @@ footer {
   height: 40px;
   font-size: 14px;
 }
+.lineup-count-select {
+  width: 88px;
+}
 .drag-help {
   display: flex;
   gap: 5px;

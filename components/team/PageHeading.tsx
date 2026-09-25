@@ -5,10 +5,14 @@ import { FileDown } from "lucide-react";
 export function PageHeading({
   teamName,
   pdfBusy,
+  pdfDisabled,
+  pdfDisabledReason,
   onCreatePdf,
 }: {
   teamName: string;
   pdfBusy: boolean;
+  pdfDisabled: boolean;
+  pdfDisabledReason: string;
   onCreatePdf: () => void;
 }) {
   return (
@@ -20,9 +24,14 @@ export function PageHeading({
           {teamName} <span className="heading-separator">/</span> 公式戦オーダー
         </p>
       </div>
-      <button className="primary" onClick={onCreatePdf} disabled={pdfBusy}>
+      <button
+        className="primary"
+        onClick={onCreatePdf}
+        disabled={pdfBusy || pdfDisabled}
+        title={pdfDisabledReason || undefined}
+      >
         <FileDown size={19} />
-        {pdfBusy ? "PDFを作成中…" : "メンバー表作成"}
+        {pdfBusy ? "PDFを作成中…" : pdfDisabled ? "11人以上はPDF不可" : "メンバー表作成"}
       </button>
     </div>
   );

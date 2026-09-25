@@ -20,6 +20,7 @@ export function PlayerPickerModal({
   players,
   bench,
   absent,
+  slotCount,
   onClose,
   onSelect,
   onShiftOrder,
@@ -29,6 +30,7 @@ export function PlayerPickerModal({
   players: Player[];
   bench: Player[];
   absent: Player[];
+  slotCount: number;
   onClose: () => void;
   /** playerId が null なら選択解除 */
   onSelect: (playerId: string | null) => void;
@@ -89,7 +91,7 @@ export function PlayerPickerModal({
           </button>
           <button
             className="secondary"
-            disabled={slotIndex === 8}
+            disabled={slotIndex === slotCount - 1}
             onClick={() => {
               onShiftOrder(slotIndex, 1);
               onClose();

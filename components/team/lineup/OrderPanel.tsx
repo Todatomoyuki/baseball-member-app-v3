@@ -2,7 +2,13 @@
 import { useState } from "react";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { GripVertical } from "lucide-react";
-import { changeMode, type Player, type TeamData } from "@/lib/model";
+import {
+  changeMode,
+  lineupCapacity,
+  MAX_LINEUP_PLAYERS,
+  type Player,
+  type TeamData,
+} from "@/lib/model";
 import { useLineupSensors } from "../hooks/useLineupSensors";
 import { countActive, dragEndUpdater } from "../lib/lineup-actions";
 import { AbsentSection } from "./AbsentSection";
@@ -62,7 +68,7 @@ export function OrderPanel({
 }) {
   const sensors = useLineupSensors();
   const activeCount = countActive(data);
-  const capacity = data.mode === "dh" ? 10 : 9;
+  const capacity = lineupCapacity(data);
   const pitcher = data.players.find((p) => p.id === data.pitcher);
   const [pendingMove, setPendingMove] = useState<PendingMove | null>(null);
   const warningOpen = pendingMove !== null && pendingMove.source === data;
@@ -85,12 +91,32 @@ export function OrderPanel({
           aria-label="試合のルール"
           value={data.mode}
           onChange={(e) =>
-            edit((d) => changeMode(d, e.target.value as "normal" | "dh", 9))
+            edit((d) => changeMode(d, e.target.value as "normal" | "dh" | "all" ,))
           }
         >
           <option value="normal">9人制</option>
-          <option value="dh">DH制（10人）</option>
+          <option value="dh">DH制</option>
+          <option value="all">全員打ち</option>
         </select>
+        {data.mode === "all" && (
+          <select
+            className="mode-select lineup-count-select"
+            aria-label="オーダー人数"
+            value={capacity}
+            onChange={(event) =>
+              edit((current) =>
+                changeMode(current, "all", Number(event.target.value)),
+              )
+            }
+          >
+            {Array.from(
+              { length: MAX_LINEUP_PLAYERS - 9 },
+              (_, index) => index + 10,
+            ).map((count) => (
+              <option key={count} value={count}>{count}人</option>
+            ))}
+          </select>
+        )}
       </div>
 
       <p className="drag-help">

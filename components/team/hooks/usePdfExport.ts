@@ -1,6 +1,11 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { lineupWarnings, type TeamData } from "@/lib/model";
+import {
+  canExportLineupPdf,
+  lineupWarnings,
+  MAX_PDF_LINEUP_PLAYERS,
+  type TeamData,
+} from "@/lib/model";
 
 /**
  * メンバー表 PDF の生成まわり。
@@ -10,6 +15,10 @@ import { lineupWarnings, type TeamData } from "@/lib/model";
  * - objectURL は不要になったタイミングで必ず revoke する
  */
 export function usePdfExport(data: TeamData, onError: (message: string) => void) {
+  const disabled = !canExportLineupPdf(data);
+  const disabledReason = disabled
+    ? `${MAX_PDF_LINEUP_PLAYERS + 1}人以上のオーダーはPDFを作成できません。`
+    : "";
   const [busy, setBusy] = useState(false);
   const [url, setUrl] = useState("");
   const [name, setName] = useState("");
@@ -24,6 +33,10 @@ export function usePdfExport(data: TeamData, onError: (message: string) => void)
   /** @param force true なら未入力警告を無視して作成する */
   const create = useCallback(
     async (force = false) => {
+      if (!canExportLineupPdf(data)) {
+        onError(`${MAX_PDF_LINEUP_PLAYERS + 1}人以上のオーダーはPDFを作成できません。`);
+        return;
+      }
       const found = lineupWarnings(data);
       if (found.length && !force) {
         setWarnings(found);
@@ -58,5 +71,16 @@ export function usePdfExport(data: TeamData, onError: (message: string) => void)
     setWarnings(null);
   }, []);
 
-  return { busy, url, name, warnings, create, dismissWarnings, closePreview, clear };
+  return {
+    busy,
+    disabled,
+    disabledReason,
+    url,
+    name,
+    warnings,
+    create,
+    dismissWarnings,
+    closePreview,
+    clear,
+  };
 }

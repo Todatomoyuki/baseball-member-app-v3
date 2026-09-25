@@ -116,7 +116,7 @@ export function setPositionUpdater(index: number, position: Position) {
 export function shiftOrderUpdater(index: number, delta: number) {
   return (d: TeamData): TeamData => {
     const target = index + delta;
-    if (target < 0 || target >= 9) return d;
+    if (target < 0 || target >= d.slots.length) return d;
     [d.slots[index], d.slots[target]] = [d.slots[target], d.slots[index]];
     return d;
   };
