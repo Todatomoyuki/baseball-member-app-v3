@@ -282,6 +282,20 @@
 .stats-confirm-list {
   overflow: hidden;
 }
+.stats-game-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+/* 1番目の要素だけに margin-bottom を効かせる */
+.stats-game-heading.is-first {
+  margin-bottom: 12px;
+}
+.stats-game-heading h2 {
+  min-width: 0;
+  margin: 0;
+}
 .stats-pagination {
   display: flex;
   align-items: center;

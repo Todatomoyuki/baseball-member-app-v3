@@ -4,6 +4,16 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { AuthMember } from "@/lib/auth-types";
 import type { Player } from "@/lib/model";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   emptyPlayerStats,
   gameKey,
   parseGameKey,
@@ -44,7 +54,7 @@ export function StatsView({
   appNavigation?: ReactNode;
   onSaveStateChange?: (state: SaveState) => void;
 }) {
-  const [registered, setRegistered] = useState(false);
+  const [registrationMessage, setRegistrationMessage] = useState("");
   const registrationTimer = useRef<number | null>(null);
   const stats = useStatsData();
   const [selectedPlayerId, setSelectedPlayerId] = useState(member.id);
@@ -54,6 +64,10 @@ export function StatsView({
   const [openPlate, setOpenPlate] = useState<number | null>(null);
   const [confirmationPage, setConfirmationPage] = useState(1);
   const [entryReset, setEntryReset] = useState(false);
+  const [gameToDelete, setGameToDelete] = useState<{
+    key: string;
+    game: { date: string; number: number };
+  } | null>(null);
   const [draftValues, setDraftValues] = useState<PlayerStats>(() =>
     emptyPlayerStats(),
   );
@@ -142,7 +156,7 @@ export function StatsView({
       window.clearTimeout(registrationTimer.current);
       registrationTimer.current = null;
     }
-    setRegistered(false);
+    setRegistrationMessage("");
   };
   const editPlayer = (updater: (current: PlayerStats) => PlayerStats) => {
     if (!selectedDate || !selectedPlayer || !canEditPlayer(selectedPlayer.id))
@@ -246,11 +260,11 @@ export function StatsView({
       },
     }));
 
-    setRegistered(true);
+    setRegistrationMessage("登録しました！");
 
     registrationTimer.current = window.setTimeout(() => {
       registrationTimer.current = null;
-      setRegistered(false);
+      setRegistrationMessage("");
     }, REGISTRATION_MESSAGE_MS);
   };
   const resetEntry = () => {
@@ -259,6 +273,11 @@ export function StatsView({
     clearRegistrationMessage();
     setDraftValues(emptyPlayerStats());
     setOpenPlate(null);
+    setRegistrationMessage("リセットしました");
+    registrationTimer.current = window.setTimeout(() => {
+      registrationTimer.current = null;
+      setRegistrationMessage("");
+    }, REGISTRATION_MESSAGE_MS);
   };
   const deleteRegistration = (gameKeyToDelete: string, playerId: string) => {
     if (!canEditPlayer(playerId)) return;
@@ -271,9 +290,45 @@ export function StatsView({
       return { ...current, games };
     });
   };
+  const deleteGameRegistration = (gameKeyToDelete: string, game: { date: string; number: number }) => {
+    if (!member.isAdmin) return;
+    setGameToDelete({ key: gameKeyToDelete, game });
+  };
+  const confirmDeleteGameRegistration = () => {
+    if (!gameToDelete) return;
+    stats.edit((current: StatsData) => {
+      const games = { ...current.games };
+      delete games[gameToDelete.key];
+      return { ...current, games };
+    });
+    setGameToDelete(null);
+  };
 
   return (
     <section className="stats-page">
+      <AlertDialog
+        open={gameToDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) setGameToDelete(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>この試合の成績を削除しますか？</AlertDialogTitle>
+            <AlertDialogDescription>
+              {gameToDelete
+                ? `${gameToDelete.game.number === 1 ? gameToDelete.game.date : `${gameToDelete.game.date}・${gameToDelete.game.number}試合目`}の成績をすべて削除します。`
+                : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>キャンセル</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteGameRegistration}>
+              削除する
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <header className="page-heading">
         <div>
           <p className="eyebrow">GAME STATS</p>
@@ -325,13 +380,24 @@ export function StatsView({
                 <p className="stats-empty">まだ成績が登録されていません。</p>
               </div>
             ) : (
-              visibleRegisteredGames.map(({ key, game }) => (
+              visibleRegisteredGames.map(({ key, game }, index) => (
                 <section className="stats-game-group" key={key}>
-                  <h2>
-                    {game.number === 1
-                      ? game.date
-                      : `${game.date}・${game.number}試合目`}
-                  </h2>
+                  <div className={`stats-game-heading ${index === 0 ? 'is-first' : ''}`}>
+                    <h2>
+                      {game.number === 1
+                        ? game.date
+                        : `${game.date}・${game.number}試合目`}
+                    </h2>
+                    {member.isAdmin && (
+                      <button
+                        type="button"
+                        className="stats-delete-button"
+                        onClick={() => deleteGameRegistration(key, game)}
+                      >
+                        この試合を削除
+                      </button>
+                    )}
+                  </div>
                   <div className="panel">
                     {players
                       .filter((player) => stats.data.games[key]?.[player.id])
@@ -617,9 +683,13 @@ export function StatsView({
           </div>
         </div>
       )}
-      {registered && (
-        <div className="stats-register-toast" role="status" aria-live="polite">
-          ✓ 登録しました！
+      {registrationMessage && (
+        <div
+          className={`stats-register-toast${registrationMessage === "リセットしました" ? " reset" : ""}`}
+          role="status"
+          aria-live="polite"
+        >
+          ✓ {registrationMessage}
         </div>
       )}
     </section>
