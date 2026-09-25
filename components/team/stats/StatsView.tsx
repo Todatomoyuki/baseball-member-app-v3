@@ -380,9 +380,9 @@ export function StatsView({
                 <p className="stats-empty">まだ成績が登録されていません。</p>
               </div>
             ) : (
-              visibleRegisteredGames.map(({ key, game }) => (
+              visibleRegisteredGames.map(({ key, game }, index) => (
                 <section className="stats-game-group" key={key}>
-                  <div className="stats-game-heading">
+                  <div className={`stats-game-heading ${index === 0 ? 'is-first' : ''}`}>
                     <h2>
                       {game.number === 1
                         ? game.date
