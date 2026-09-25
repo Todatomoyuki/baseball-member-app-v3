@@ -54,7 +54,7 @@ export function StatsView({
   appNavigation?: ReactNode;
   onSaveStateChange?: (state: SaveState) => void;
 }) {
-  const [registered, setRegistered] = useState(false);
+  const [registrationMessage, setRegistrationMessage] = useState("");
   const registrationTimer = useRef<number | null>(null);
   const stats = useStatsData();
   const [selectedPlayerId, setSelectedPlayerId] = useState(member.id);
@@ -156,7 +156,7 @@ export function StatsView({
       window.clearTimeout(registrationTimer.current);
       registrationTimer.current = null;
     }
-    setRegistered(false);
+    setRegistrationMessage("");
   };
   const editPlayer = (updater: (current: PlayerStats) => PlayerStats) => {
     if (!selectedDate || !selectedPlayer || !canEditPlayer(selectedPlayer.id))
@@ -260,11 +260,11 @@ export function StatsView({
       },
     }));
 
-    setRegistered(true);
+    setRegistrationMessage("登録しました！");
 
     registrationTimer.current = window.setTimeout(() => {
       registrationTimer.current = null;
-      setRegistered(false);
+      setRegistrationMessage("");
     }, REGISTRATION_MESSAGE_MS);
   };
   const resetEntry = () => {
@@ -273,6 +273,11 @@ export function StatsView({
     clearRegistrationMessage();
     setDraftValues(emptyPlayerStats());
     setOpenPlate(null);
+    setRegistrationMessage("リセットしました");
+    registrationTimer.current = window.setTimeout(() => {
+      registrationTimer.current = null;
+      setRegistrationMessage("");
+    }, REGISTRATION_MESSAGE_MS);
   };
   const deleteRegistration = (gameKeyToDelete: string, playerId: string) => {
     if (!canEditPlayer(playerId)) return;
@@ -678,9 +683,13 @@ export function StatsView({
           </div>
         </div>
       )}
-      {registered && (
-        <div className="stats-register-toast" role="status" aria-live="polite">
-          ✓ 登録しました！
+      {registrationMessage && (
+        <div
+          className={`stats-register-toast${registrationMessage === "リセットしました" ? " reset" : ""}`}
+          role="status"
+          aria-live="polite"
+        >
+          ✓ {registrationMessage}
         </div>
       )}
     </section>

@@ -56,6 +56,11 @@
   transform: translateX(-50%);
   animation: stats-toast-in 0.25s ease-out;
 }
+.stats-register-toast.reset {
+  background: #fff;
+  color: #315b78;
+  box-shadow: 0 12px 30px #16324f26;
+}
 @keyframes stats-toast-in {
   from {
     opacity: 0;
