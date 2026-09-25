@@ -15,6 +15,7 @@ export function LineupWorkspace({
   attendanceScheduleId,
   onOpenSchedule,
   readOnly,
+  selectionDisabled,
   edit,
   bench,
   absent,
@@ -31,6 +32,7 @@ export function LineupWorkspace({
   attendanceScheduleId: string | null;
   onOpenSchedule: () => void;
   readOnly: boolean;
+  selectionDisabled: boolean;
   edit: (fn: (d: TeamData) => TeamData) => void;
   bench: Player[];
   absent: Player[];
@@ -42,12 +44,13 @@ export function LineupWorkspace({
   onAddPlayer: () => void;
 }) {
   return (
-    <div className={`workspace lineup-workspace ${readOnly ? "lineup-readonly" : ""}`}>
+    <div className={`workspace lineup-workspace ${readOnly ? "lineup-readonly" : ""}`} aria-busy={data.scheduleId !== attendanceScheduleId}>
       <MatchInfoPanel
         data={data}
         scheduleOptions={scheduleOptions}
         onOpenSchedule={onOpenSchedule}
         readOnly={readOnly}
+        selectionDisabled={selectionDisabled}
         edit={edit}
         infoOpen={infoOpen}
         onToggleInfo={onToggleInfo}
@@ -55,7 +58,7 @@ export function LineupWorkspace({
       <OrderPanel
         data={data}
         attendance={data.scheduleId !== null && data.scheduleId === attendanceScheduleId ? attendance : null}
-        readOnly={readOnly}
+        readOnly={readOnly || data.scheduleId !== attendanceScheduleId}
         edit={edit}
         bench={bench}
         absent={absent}

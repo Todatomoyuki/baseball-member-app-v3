@@ -20,6 +20,9 @@ export type ScheduleGame = {
     mapUrl: string;
     status: ScheduleGameStatus;
     detailsRevision: number;
+    previousStartTime: string | null;
+    previousLocation: string | null;
+    changedBy: string | null;
     responses: Record<string, ScheduleResponse>;
 };
 
@@ -133,6 +136,9 @@ export function validateScheduleData(value: unknown): ScheduleData {
             mapUrl,
             status: raw.status as ScheduleGameStatus,
             detailsRevision,
+            previousStartTime: raw.previousStartTime === null ? null : stringField(raw.previousStartTime, "previous start time", 5),
+            previousLocation: raw.previousLocation === null ? null : stringField(raw.previousLocation, "previous location", SCHEDULE_LIMITS.location),
+            changedBy: raw.changedBy === null ? null : stringField(raw.changedBy, "changed by", SCHEDULE_LIMITS.id, true),
             responses,
         };
     });

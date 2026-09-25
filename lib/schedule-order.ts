@@ -1,6 +1,8 @@
 import type { TeamData } from "./model";
 import { japanDate, upcomingSaturday, type ScheduleData, type ScheduleGame } from "./schedule";
 
+export type SavedLineup = Pick<TeamData, "mode" | "slots" | "pitcher" | "count">;
+
 function firstGameOnDate(schedules: ScheduleData, date: string): ScheduleGame | undefined {
     return schedules.games.filter((game) => game.date === date).sort((a, b) => {
         // Times are validated HH:mm strings; an unknown time sorts after known times.
@@ -26,7 +28,7 @@ export function projectScheduleOrder(
     schedules: ScheduleData,
     previousWeek: string,
     now: Date = new Date(),
-    options: { preferCurrentDate?: boolean } = {},
+    options: { preferCurrentDate?: boolean; sourceScheduleId?: string | null; lineups?: Map<string, SavedLineup> } = {},
 ): { data: TeamData; week: string } {
     const week = upcomingSaturday(now);
     // A delayed invocation of an older cron must not roll the shared order back.
@@ -52,7 +54,20 @@ export function projectScheduleOrder(
     }
 
     const activeIds = new Set(team.players.map((player) => player.id));
+    const sourceId = options.sourceScheduleId === undefined ? team.scheduleId : options.sourceScheduleId;
+    const stored = game.id !== sourceId ? options.lineups?.get(game.id) : undefined;
+    const lineup = stored ? {
+        ...stored,
+        slots: stored.slots.map((slot) => ({ ...slot, playerId: activeIds.has(slot.playerId ?? "") ? slot.playerId : null })),
+        pitcher: activeIds.has(stored.pitcher ?? "") ? stored.pitcher : null,
+    } : team;
     const absentIds = new Set(team.absentIds.filter((id) => activeIds.has(id)));
+    if (stored) {
+        // Saved starters belong to this game, regardless of the previous game's
+        // manual absent zone. Explicit absences below still take precedence.
+        for (const slot of lineup.slots) if (slot.playerId) absentIds.delete(slot.playerId);
+        if (lineup.pitcher) absentIds.delete(lineup.pitcher);
+    }
     const scheduledAbsences = new Set<string>();
     for (const [playerId, response] of Object.entries(game.responses)) {
         if (!activeIds.has(playerId)) continue;
@@ -76,10 +91,13 @@ export function projectScheduleOrder(
             opponent: game.opponent,
             opponents: includeCandidate(team.opponents, game.opponent),
             location: game.location,
+            locations: includeCandidate(team.locations, game.location),
             mapUrl: game.mapUrl,
-            slots: team.slots.map((slot) => scheduledAbsences.has(slot.playerId ?? "")
+            mode: lineup.mode,
+            count: lineup.count,
+            slots: lineup.slots.map((slot) => scheduledAbsences.has(slot.playerId ?? "")
                 ? { ...slot, playerId: null } : slot),
-            pitcher: scheduledAbsences.has(team.pitcher ?? "") ? null : team.pitcher,
+            pitcher: scheduledAbsences.has(lineup.pitcher ?? "") ? null : lineup.pitcher,
             absentIds: [...absentIds],
         },
         week,

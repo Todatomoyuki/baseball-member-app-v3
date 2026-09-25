@@ -152,7 +152,20 @@ export function useTeamData() {
           acceptData(result);
           setSaveState("saved");
         } else {
-          setSaveState("dirty");
+          // Keep canonical restored starters when a roster/settings edit arrives
+          // while switching games. Only replay fields edited after this request.
+          const latest = JSON.parse(currentDraft.current) as TeamData;
+          // A weekly rollover can also select a game on the server. Edits to the
+          // previous game's placement must never overwrite that game's starters.
+          const rolledOver = result.data.scheduleId !== data.scheduleId;
+          const sharedFields = new Set(["players", "teamName", "manager", "tournaments", "opponents", "locations"]);
+          const following = Object.fromEntries(Object.entries(latest).filter(([key, value]) =>
+            (!rolledOver || sharedFields.has(key)) && JSON.stringify(value) !== JSON.stringify(data[key as keyof TeamData])));
+          const merged = { ...result.data, ...following } as TeamData;
+          acceptData(result);
+          currentDraft.current = JSON.stringify(merged);
+          setData(merged);
+          setSaveState(currentDraft.current === saved.current ? "saved" : "dirty");
         }
         setError("");
       } catch (e) {

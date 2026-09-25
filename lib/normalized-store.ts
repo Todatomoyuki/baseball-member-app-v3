@@ -4,7 +4,7 @@ import { emptyPlayerStats, gameKey, parseGameKey, type StatsData, type PlateAppe
 import { db, digest, random, token } from "./server";
 import type { AuthMember } from "./auth-types";
 import { japanDate, upcomingSaturday, type ScheduleData, type ScheduleGame } from "./schedule";
-import { projectScheduleOrder } from "./schedule-order";
+import { projectScheduleOrder, type SavedLineup } from "./schedule-order";
 
 export type DataScope = "team" | "equipment" | "stats" | "schedule";
 export type ScopeData = { team: TeamData; equipment: EquipmentData; stats: StatsData; schedule: ScheduleData };
@@ -34,7 +34,7 @@ const tables: Record<DataScope, Table[]> = {
     { name: "equipment_items", columns: ["id", "name", "holder_id", "note", "sort_order", "notify_line"], keys: ["id"], order: "sort_order" },
   ],
   schedule: [
-    { name: "schedule_games", columns: ["id", "date", "start_time", "title", "opponent", "location", "map_url", "status", "details_revision"], keys: ["id"], order: "date, start_time, id" },
+    { name: "schedule_games", columns: ["id", "date", "start_time", "title", "opponent", "location", "map_url", "status", "details_revision", "previous_start_time", "previous_location", "changed_by"], keys: ["id"], order: "date, start_time, id" },
     { name: "schedule_responses", columns: ["schedule_id", "player_id", "status", "comment", "confirmed_revision"], keys: ["schedule_id", "player_id"], order: "schedule_id, player_id" },
   ],
   stats: [
@@ -43,6 +43,15 @@ const tables: Record<DataScope, Table[]> = {
     { name: "plate_appearances", columns: ["game_date", "game_number", "player_id", "appearance_order", "result", "scoring_position"], keys: ["game_date", "game_number", "player_id", "appearance_order"], order: "game_date, game_number, player_id, appearance_order" },
   ],
 };
+
+const lineupTables: Table[] = [
+  { name: "schedule_lineups", columns: ["schedule_id", "mode", "pitcher_id"], keys: ["schedule_id"], order: "schedule_id" },
+  { name: "schedule_lineup_slots", columns: ["schedule_id", "batting_order", "position", "player_id"], keys: ["schedule_id", "batting_order"], order: "schedule_id,batting_order" },
+];
+
+function lineupSnapshotSql() {
+  return `json_object(${lineupTables.map((table) => `'${table.name}',(SELECT json_group_array(json_array(${table.columns.join(",")})) FROM (SELECT ${table.columns.join(",")} FROM ${table.name} WHERE schedule_id IN (SELECT id FROM schedule_selection) ORDER BY ${table.order}))`).join(",")})`;
+}
 
 export const SCHEDULE_PAGE_SIZE = 20;
 export type ScheduleQuery =
@@ -110,7 +119,12 @@ export type Snapshot = {
   member: AuthMember;
   related?: { revision: number; tables: Tables | null };
   week?: string;
+  lineups?: Tables;
 };
+
+export class TeamSettingsPermissionError extends Error {
+  constructor() { super("チーム名・監督名を変更できるのは管理者だけです。"); }
+}
 
 export class SchedulePermissionError extends Error {
   constructor() {
@@ -165,7 +179,7 @@ export async function readSnapshot(
     SELECT r.revision, p.id, p.name, p.number, p.is_admin, p.can_edit_lineup,
       ${linked ? "related.revision AS related_revision, settings.schedule_week," : ""}
       CASE WHEN ${predicate} THEN ${linked
-        ? `json_object('primary', ${snapshotSql(scope, false)}, 'related', ${snapshotSql(otherScope, false)})`
+        ? `json_object('primary', ${snapshotSql(scope, false)}, 'related', ${snapshotSql(otherScope, false)}, 'lineups', ${lineupSnapshotSql()})`
         : snapshotSql(scope, partition !== null, selection.schedule?.kind === "past")} END AS data
     FROM sessions AS s
     JOIN member_devices AS d ON d.hash=s.device_hash
@@ -184,7 +198,7 @@ export async function readSnapshot(
   return {
     revision: result.revision,
     tables: decoded === null ? null : linked ? decoded.primary as Tables : decoded as Tables,
-    ...(linked ? { related: { revision: result.related_revision!, tables: decoded?.related ?? null }, week: result.schedule_week ?? "" } : {}),
+    ...(linked ? { related: { revision: result.related_revision!, tables: decoded?.related ?? null }, week: result.schedule_week ?? "", lineups: decoded?.lineups } : {}),
     sessionHash,
     member: { id: result.id, name: result.name, number: result.number, isAdmin: result.is_admin === 1, canEditLineup: result.can_edit_lineup === 1 },
   };
@@ -210,6 +224,7 @@ export function decodeData(scope: DataScope, rows: Tables): ScopeData[DataScope]
       count: rows.lineup_slots.length,
       tournaments: rows.name_options.filter((row) => row[0] === "tournament").map((row) => row[1] as string),
       opponents: rows.name_options.filter((row) => row[0] === "opponent").map((row) => row[1] as string),
+      locations: rows.name_options.filter((row) => row[0] === "location").map((row) => row[1] as string),
       players: players.map((row) => ({ id: row[0] as string, name: row[1] as string, number: row[2] as string, kana: row[3] as string })),
       slots: rows.lineup_slots.map((row) => ({ position: row[1] as TeamData["slots"][number]["position"], playerId: row[2] as string | null })),
       benchOrder: players.filter((row) => row[5] !== null).sort((a, b) => Number(a[5]) - Number(b[5])).map((row) => row[0] as string),
@@ -237,6 +252,7 @@ export function decodeData(scope: DataScope, rows: Tables): ScopeData[DataScope]
         id: row[0] as string, date: row[1] as string, startTime: row[2] as string,
         title: row[3] as string, opponent: row[4] as string, location: row[5] as string, mapUrl: row[6] as string,
         status: row[7] as ScheduleGame["status"], detailsRevision: row[8] as number,
+        previousStartTime: row[9] as string | null, previousLocation: row[10] as string | null, changedBy: row[11] as string | null,
         responses: Object.fromEntries(responsesByGame.get(row[0]) ?? []),
       })),
     } satisfies ScheduleData;
@@ -267,6 +283,7 @@ function encodeTeam(data: TeamData): Tables {
     name_options: [
       ...Array.from(new Set(data.tournaments), (name, index) => ["tournament", name, index]),
       ...Array.from(new Set(data.opponents), (name, index) => ["opponent", name, index]),
+      ...Array.from(new Set(data.locations), (name, index) => ["location", name, index]),
     ] as Row[],
     lineup_slots: data.slots.map((slot, index) => [index, slot.position, slot.playerId]),
   };
@@ -295,15 +312,15 @@ export function encodeData(scope: DataScope, data: ScopeData[DataScope]): Tables
   if (scope === "schedule") {
     const games = (data as ScheduleData).games;
     return {
-      schedule_games: games.map((game) => [game.id, game.date, game.startTime, game.title, game.opponent, game.location, game.mapUrl, game.status, game.detailsRevision]),
+      schedule_games: games.map((game) => [game.id, game.date, game.startTime, game.title, game.opponent, game.location, game.mapUrl, game.status, game.detailsRevision, game.previousStartTime, game.previousLocation, game.changedBy]),
       schedule_responses: games.flatMap((game) => Object.entries(game.responses).map(([id, response]) => [game.id, id, response.status, response.comment, response.confirmedRevision])),
     };
   }
   return { equipment_items: (data as EquipmentData).items.map((item, index) => [item.id, item.name, item.holderId, item.note, index, item.notifyLine ? 1 : 0]) };
 }
 
-function changesBetween(scope: DataScope, previous: Tables, next: Tables) {
-  return tables[scope].map((table) => {
+function changesBetween(scope: DataScope, previous: Tables, next: Tables, selectedTables = tables[scope]) {
+  return selectedTables.map((table) => {
     const key = (row: Row) => JSON.stringify(table.keys.map((column) => row[table.columns.indexOf(column)]));
     const oldRows = new Map(previous[table.name].map((row) => [key(row), row]));
     const newRows = new Map(next[table.name].map((row) => [key(row), row]));
@@ -317,6 +334,55 @@ function changesBetween(scope: DataScope, previous: Tables, next: Tables) {
 
 type ChangeGroup = { scope: DataScope; revision: number; changes: ReturnType<typeof changesBetween> };
 const hasChanges = (group: ChangeGroup) => group.changes.some((change) => change.upsert.length || change.remove.length);
+
+function decodeLineups(rows?: Tables): Map<string, SavedLineup> {
+  const result = new Map<string, SavedLineup>();
+  for (const row of rows?.schedule_lineups ?? []) {
+    result.set(row[0] as string, { mode: row[1] as TeamData["mode"], pitcher: row[2] as string | null, slots: [], count: 0 });
+  }
+  for (const row of rows?.schedule_lineup_slots ?? []) {
+    const lineup = result.get(row[0] as string);
+    if (lineup) lineup.slots.push({ position: row[2] as TeamData["slots"][number]["position"], playerId: row[3] as string | null });
+  }
+  for (const lineup of result.values()) lineup.count = lineup.slots.length;
+  return result;
+}
+
+/** Save only starters. The current order remains the working copy; the selected
+ * game's snapshot is restored when switching, and past snapshots are discarded.
+ */
+function lineupChanges(rows: Tables | undefined, before: TeamData, after: TeamData, schedule: ScheduleData, now: Date) {
+  const previous = rows ?? { schedule_lineups: [], schedule_lineup_slots: [] };
+  const stored = decodeLineups(previous);
+  const games = new Map(schedule.games.map((game) => [game.id, game]));
+  const today = japanDate(now);
+  for (const id of stored.keys()) {
+    if (!games.has(id) || games.get(id)!.date < today) stored.delete(id);
+  }
+  for (const team of before.scheduleId !== after.scheduleId ? [before, after] : [after]) {
+    if (team.scheduleId && (games.get(team.scheduleId)?.date ?? "") >= today) {
+      stored.set(team.scheduleId, { mode: team.mode, pitcher: team.pitcher, slots: team.slots, count: team.slots.length });
+    }
+  }
+  const next: Tables = { schedule_lineups: [], schedule_lineup_slots: [] };
+  for (const [id, lineup] of stored) {
+    next.schedule_lineups.push([id, lineup.mode, lineup.pitcher]);
+    lineup.slots.forEach((slot, index) => next.schedule_lineup_slots.push([id, index, slot.position, slot.playerId]));
+  }
+  const changes = changesBetween("team", previous, next, lineupTables);
+  // Parent deletion cascades to its batting-order rows.
+  const removed = new Set(changes[0].remove.map((row) => row[0]));
+  changes[1].remove = changes[1].remove.filter((row) => !removed.has(row[0]));
+  return { changes, next };
+}
+
+function rememberScheduleNames(team: TeamData, schedule: ScheduleData, changedIds?: string[]): TeamData {
+  const changed = new Set(changedIds);
+  const games = schedule.games.filter((game) => changed.has(game.id));
+  const add = (values: string[], field: "title" | "opponent" | "location") =>
+    [...new Set([...values, ...games.map((game) => game[field]).filter(Boolean)])].slice(-200);
+  return { ...team, tournaments: add(team.tournaments, "title"), opponents: add(team.opponents, "opponent"), locations: add(team.locations, "location") };
+}
 
 /** Partial requests replace only explicit IDs. Projection context and unloaded
  * history never become implicit deletions when a mobile client saves a page.
@@ -335,24 +401,28 @@ export function mergeScheduleChanges(snapshot: Snapshot, incoming: ScheduleData,
   };
 }
 
-function normalizeScheduleRevisions(previous: Tables, next: Tables): ScheduleData {
+function normalizeScheduleRevisions(previous: Tables, next: Tables, memberId: string): ScheduleData {
   const baseline = decodeData("schedule", previous) as ScheduleData;
   const before = new Map(baseline.games.map((game) => [game.id, game]));
   const incoming = decodeData("schedule", next) as ScheduleData;
-  const coreFields = ["date", "startTime", "title", "opponent", "location", "status"] as const;
+  const coreFields = ["startTime", "location"] as const;
   return {
     games: incoming.games.map((game) => {
       const old = before.get(game.id);
+      const detailsChanged = !!old && coreFields.some((key) => game[key] !== old[key]);
       const detailsRevision = old
-        ? old.detailsRevision + (coreFields.some((key) => game[key] !== old[key]) ? 1 : 0)
+        ? old.detailsRevision + (detailsChanged ? 1 : 0)
         : 1;
       if (!Number.isSafeInteger(detailsRevision)) throw new Error("Schedule revision limit reached");
       return {
         ...game,
         detailsRevision,
+        previousStartTime: detailsChanged ? old!.startTime : old?.previousStartTime ?? null,
+        previousLocation: detailsChanged ? old!.location : old?.previousLocation ?? null,
+        changedBy: detailsChanged ? memberId : old?.changedBy ?? null,
         responses: Object.fromEntries(Object.entries(game.responses).map(([id, response]) => {
           const prior = old?.responses[id];
-          const answered = !prior || response.status !== prior.status || response.comment !== prior.comment ||
+          const answered = (detailsChanged && id === memberId) || !prior || response.status !== prior.status || response.comment !== prior.comment ||
             response.confirmedRevision !== prior.confirmedRevision;
           return [id, { ...response, confirmedRevision: answered ? detailsRevision : prior.confirmedRevision }];
         })),
@@ -365,13 +435,20 @@ function normalizeScheduleRevisions(previous: Tables, next: Tables): ScheduleDat
 export async function writeChanges(scope: DataScope, snapshot: Snapshot, next: Tables, scheduleGameIds?: string[]): Promise<{ revision: number; data?: TeamData | ScheduleData } | null> {
   if (!snapshot.tables) return null;
   const previous = snapshot.tables;
-  const normalizedSchedule = scope === "schedule" ? normalizeScheduleRevisions(previous, next) : undefined;
+  const normalizedSchedule = scope === "schedule" ? normalizeScheduleRevisions(previous, next, snapshot.member.id) : undefined;
   if (normalizedSchedule) next = encodeData("schedule", normalizedSchedule);
   const changes = changesBetween(scope, previous, next);
+  if (scope === "team" && !snapshot.member.isAdmin &&
+      [1, 2].some((index) => previous.team_settings[0][index] !== next.team_settings[0][index])) throw new TeamSettingsPermissionError();
   if (scope === "team" && !snapshot.member.canEditLineup) {
     // Roster metadata remains editable. Existing placement and membership are
     // fixed; newly registered players may only append to the implicit bench.
-    if (changes.slice(1).some((change) => change.upsert.length || change.remove.length) ||
+    if (changes.slice(1).some((change) => {
+      if (snapshot.member.isAdmin && change.table.name === "team_settings") {
+        return change.remove.length > 0 || change.upsert.some((row) => row.some((cell, index) => index !== 1 && index !== 2 && cell !== previous.team_settings[0][index]));
+      }
+      return change.upsert.length || change.remove.length;
+    }) ||
         changes[0].remove.length) throw new LineupPermissionError();
     const existing = new Map(previous.players.map((row) => [row[0], row]));
     if (previous.players.some((row, index) => next.players[index]?.[0] !== row[0]) ||
@@ -428,17 +505,22 @@ export async function writeChanges(scope: DataScope, snapshot: Snapshot, next: T
   if (scope === "team" || scope === "schedule") {
     if (!snapshot.related?.tables) throw new Error("Missing linked snapshot");
     const teamRows = scope === "team" ? previous : snapshot.related.tables;
-    const team = decodeData("team", scope === "team" ? next : teamRows) as TeamData;
+    let team = decodeData("team", scope === "team" ? next : teamRows) as TeamData;
     const schedule = decodeData("schedule", scope === "schedule" ? next : snapshot.related.tables) as ScheduleData;
+    if (scope === "schedule") team = rememberScheduleNames(team, schedule, scheduleGameIds);
     if (scope === "team" && team.scheduleId && !schedule.games.some((game) => game.id === team.scheduleId)) {
       throw new Error("Schedule no longer exists");
     }
     const previousTeam = decodeData("team", teamRows) as TeamData;
     const selectedGameChanged = scope === "team" && (team.date !== previousTeam.date || team.scheduleId !== previousTeam.scheduleId);
-    const result = projectScheduleOrder(team, schedule, snapshot.week ?? "", new Date(), { preferCurrentDate: selectedGameChanged });
+    const now = new Date();
+    const result = projectScheduleOrder(team, schedule, snapshot.week ?? "", now, {
+      preferCurrentDate: selectedGameChanged, sourceScheduleId: previousTeam.scheduleId, lineups: decodeLineups(snapshot.lineups),
+    });
     projected = result.data;
     if (result.week !== snapshot.week) week = result.week;
-    const teamChanges = changesBetween("team", teamRows, encodeData("team", result.data));
+    const teamChanges = [...changesBetween("team", teamRows, encodeData("team", result.data)),
+      ...lineupChanges(snapshot.lineups, selectedGameChanged ? previousTeam : team, result.data, schedule, now).changes];
     if (scope === "team") groups[0].changes = teamChanges;
     else groups.push({ scope: "team", revision: snapshot.related.revision, changes: teamChanges });
   }
@@ -460,6 +542,7 @@ async function commitChanges(
   related?: { scope: DataScope; revision: number },
   auth?: { sessionHash: string; member: AuthMember },
   week?: string,
+  now = new Date(),
 ): Promise<number | null> {
   const primary = groups[0];
   const scope = primary.scope;
@@ -520,6 +603,8 @@ async function commitChanges(
   if (week !== undefined) {
     statements.push(database.prepare(`UPDATE team_settings SET schedule_week=? WHERE id=1 AND ${guard}`)
       .bind(week, scope, writeToken));
+    statements.push(database.prepare(`DELETE FROM schedule_lineups WHERE schedule_id IN (SELECT id FROM schedule_games WHERE date<?) AND ${guard}`)
+      .bind(japanDate(now), scope, writeToken));
   }
 
   // D1 batch is transactional: FK failures also roll back the revision change.
@@ -532,7 +617,7 @@ export function teamScheduleMetadata(snapshot: Snapshot) {
   const selectedId = snapshot.tables?.team_settings[0]?.[8];
   return {
     scheduleRevision: snapshot.related?.revision ?? 0,
-    schedules: schedule?.games.map((game) => ({ id: game.id, date: game.date, startTime: game.startTime, title: game.title, opponent: game.opponent, location: game.location, mapUrl: game.mapUrl, status: game.status, detailsRevision: game.detailsRevision })) ?? [],
+    schedules: schedule?.games.map((game) => ({ id: game.id, date: game.date, startTime: game.startTime, title: game.title, opponent: game.opponent, location: game.location, mapUrl: game.mapUrl, status: game.status, detailsRevision: game.detailsRevision, previousStartTime: game.previousStartTime, previousLocation: game.previousLocation, changedBy: game.changedBy })) ?? [],
     attendance: schedule?.games.find((game) => game.id === selectedId)?.responses ?? {},
     attendanceScheduleId: (selectedId as string | null | undefined) ?? null,
   };
@@ -543,18 +628,20 @@ export async function synchronizeTeamSnapshot(snapshot: Snapshot, database: D1Da
   if (!snapshot.tables || !snapshot.related?.tables) return "unchanged";
   const team = decodeData("team", snapshot.tables) as TeamData;
   const schedule = decodeData("schedule", snapshot.related.tables) as ScheduleData;
-  const projected = projectScheduleOrder(team, schedule, snapshot.week ?? "", now);
+  const projected = projectScheduleOrder(team, schedule, snapshot.week ?? "", now, { lineups: decodeLineups(snapshot.lineups) });
   const next = encodeData("team", projected.data);
-  const group = { scope: "team" as const, revision: snapshot.revision, changes: changesBetween("team", snapshot.tables, next) };
+  const stored = lineupChanges(snapshot.lineups, team, projected.data, schedule, now);
+  const group = { scope: "team" as const, revision: snapshot.revision, changes: [...changesBetween("team", snapshot.tables, next), ...stored.changes] };
   const week = projected.week !== snapshot.week ? projected.week : undefined;
   if (!hasChanges(group) && week === undefined) return "unchanged";
   const revision = await commitChanges(database, [group], { scope: "schedule", revision: snapshot.related.revision },
-    authenticated ? { sessionHash: snapshot.sessionHash, member: snapshot.member } : undefined, week);
+    authenticated ? { sessionHash: snapshot.sessionHash, member: snapshot.member } : undefined, week, now);
   // Re-read on CAS failure too, so the caller never returns a stale pre-rollover state.
   if (revision !== null) {
     snapshot.revision = revision;
     snapshot.tables = next;
     snapshot.week = projected.week;
+    snapshot.lineups = stored.next;
   }
   return revision === null ? "conflict" : "changed";
 }
@@ -564,14 +651,15 @@ export async function syncScheduledOrder(database: D1Database, now = new Date())
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const selection = scheduleSelectionSql("team", {}, now);
     const result = await database.prepare(`${selection.sql} SELECT r.revision, related.revision AS related_revision, settings.schedule_week,
-      ${snapshotSql("team", false)} AS team_data, ${snapshotSql("schedule", false)} AS schedule_data
+      ${snapshotSql("team", false)} AS team_data, ${snapshotSql("schedule", false)} AS schedule_data, ${lineupSnapshotSql()} AS lineup_data
       FROM app_revisions r JOIN app_revisions related ON related.scope='schedule'
       JOIN team_settings settings ON settings.id=1 WHERE r.scope='team'`)
-      .bind(...selection.values).first<{ revision: number; related_revision: number; schedule_week: string; team_data: string; schedule_data: string }>();
+      .bind(...selection.values).first<{ revision: number; related_revision: number; schedule_week: string; team_data: string; schedule_data: string; lineup_data: string }>();
     if (!result) throw new Error("Schedule migration is incomplete");
     const outcome = await synchronizeTeamSnapshot({
       revision: result.revision, tables: JSON.parse(result.team_data), week: result.schedule_week,
       related: { revision: result.related_revision, tables: JSON.parse(result.schedule_data) },
+      lineups: JSON.parse(result.lineup_data),
       sessionHash: "", member: { id: "", name: "", number: "", isAdmin: false, canEditLineup: false },
     }, database, now, false);
     if (outcome !== "conflict") return outcome === "changed";

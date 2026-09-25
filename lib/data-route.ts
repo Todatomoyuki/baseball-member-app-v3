@@ -3,7 +3,7 @@ import { validateEquipmentData } from "./equipment";
 import { gameKey, parseGameKey, validateStatsData, type StatsData } from "./stats";
 import { SCHEDULE_LIMITS, validateScheduleData, type ScheduleData } from "./schedule";
 import { json, readBody, renewSessionHeaders, sameOrigin } from "./server";
-import { decodeData, encodeData, readSnapshot, writeChanges, synchronizeTeamSnapshot, teamScheduleMetadata, mergeScheduleChanges, SCHEDULE_PAGE_SIZE, StatsPermissionError, LineupPermissionError, SchedulePermissionError, type DataScope, type ScopeData, type ScheduleQuery } from "./normalized-store";
+import { decodeData, encodeData, readSnapshot, writeChanges, synchronizeTeamSnapshot, teamScheduleMetadata, mergeScheduleChanges, SCHEDULE_PAGE_SIZE, StatsPermissionError, LineupPermissionError, SchedulePermissionError, TeamSettingsPermissionError, type DataScope, type ScopeData, type ScheduleQuery } from "./normalized-store";
 
 const validators = { team: validateData, equipment: validateEquipmentData, stats: validateStatsData, schedule: validateScheduleData };
 const labels = { team: "チーム", equipment: "道具", stats: "成績", schedule: "スケジュール" };
@@ -137,7 +137,7 @@ export function dataRoute(scope: DataScope) {
         }
         return json(result, 200, renewSessionHeaders(req));
       } catch (error) {
-        if (error instanceof StatsPermissionError || error instanceof LineupPermissionError || error instanceof SchedulePermissionError) return json({ error: error.message }, 403);
+        if (error instanceof StatsPermissionError || error instanceof LineupPermissionError || error instanceof SchedulePermissionError || error instanceof TeamSettingsPermissionError) return json({ error: error.message }, 403);
         if (error instanceof Error && /FOREIGN KEY constraint failed/i.test(error.message)) {
           return json({ error: "参照先の選手・試合がありません。最新データを読み込んでください。" }, 400);
         }

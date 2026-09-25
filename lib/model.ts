@@ -28,6 +28,7 @@ export type TeamData = {
     mapUrl: string;
     opponent: string;
     opponents: string[];
+    locations: string[];
     mode: LineupMode;
     count: number;
     players: Player[];
@@ -64,6 +65,7 @@ export function initialData(): TeamData {
         mapUrl: "",
         opponent: "",
         opponents: [],
+        locations: [],
         mode: "normal",
         count: 9,
         players: [],
@@ -317,6 +319,7 @@ const schema = z.object({
     mapUrl,
     opponent: short,
     opponents: z.array(short.min(1)).max(200),
+    locations: z.array(z.string().trim().min(1).max(SCHEDULE_LIMITS.location)).max(200),
     mode: z.enum(["normal", "dh", "all"]),
     count: z
         .number()

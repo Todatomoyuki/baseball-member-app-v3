@@ -86,6 +86,9 @@ export const scheduleGames = sqliteTable("schedule_games", {
     mapUrl: text("map_url").notNull().default(""),
     status: text("status").notNull().default("unconfirmed"),
     detailsRevision: integer("details_revision").notNull().default(1),
+    previousStartTime: text("previous_start_time"),
+    previousLocation: text("previous_location"),
+    changedBy: text("changed_by").references(() => players.id),
 }, (table) => [
     index("schedule_games_date_start_time_idx").on(table.date, table.startTime),
     index("schedule_games_date_id_idx").on(table.date, table.id),
@@ -104,6 +107,19 @@ export const scheduleResponses = sqliteTable("schedule_responses", {
     check("schedule_responses_status_check", sql`${table.status} IN ('attending', 'absent', 'undecided')`),
     check("schedule_responses_confirmed_revision_check", sql`${table.confirmedRevision} >= 0`),
 ]);
+
+export const scheduleLineups = sqliteTable("schedule_lineups", {
+    scheduleId: text("schedule_id").primaryKey().references(() => scheduleGames.id, { onDelete: "cascade" }),
+    mode: text("mode").notNull(),
+    pitcherId: text("pitcher_id").references(() => players.id),
+});
+
+export const scheduleLineupSlots = sqliteTable("schedule_lineup_slots", {
+    scheduleId: text("schedule_id").notNull().references(() => scheduleLineups.scheduleId, { onDelete: "cascade" }),
+    battingOrder: integer("batting_order").notNull(),
+    position: text("position").notNull(),
+    playerId: text("player_id").references(() => players.id),
+}, (table) => [primaryKey({ columns: [table.scheduleId, table.battingOrder] })]);
 
 export const statsGames = sqliteTable("stats_games", {
     gameDate: text("game_date").notNull(),

@@ -299,6 +299,7 @@ function GameEditor({ game, defaultDate, defaults, visible, saveState, saveError
       emptyMessage={`${pickerField.label}を入力すると追加できます。`}
       options={[...new Set([...nameOptions[pickerField.field], draft[pickerField.field]].filter(Boolean))]}
       maxLength={pickerField.maxLength}
+      mapSearch={pickerField.field === "location"}
       allowClear
       onSelect={(name) => { update(pickerField.field, name); setPicker(null); }}
     />}
@@ -379,7 +380,7 @@ export function ScheduleView({ players, member, nameOptions, appNavigation, onSa
     schedule.edit((current) => {
       const index = current.games.findIndex((game) => game.id === id);
       if (index >= 0) current.games[index] = { ...current.games[index], ...values };
-      else current.games.push({ id, ...values, mapUrl: "", detailsRevision: 1, responses: {} });
+      else current.games.push({ id, ...values, mapUrl: "", detailsRevision: 1, previousStartTime: null, previousLocation: null, changedBy: null, responses: {} });
       return current;
     });
   };

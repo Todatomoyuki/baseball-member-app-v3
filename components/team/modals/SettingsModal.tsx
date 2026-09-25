@@ -4,10 +4,73 @@ import { LogOut } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import type { AuthMember } from "@/lib/auth-types";
 import { Modal } from "../common/Modal";
+import { SaveStateLabel } from "../common/SaveStateLabel";
 import { api } from "../lib/api";
+import type { SaveState } from "../types";
+
+type TeamInfo = { teamName: string; manager: string };
+
+function TeamInfoForm({
+  teamName,
+  manager,
+  onUpdateTeamInfo,
+  saveState,
+  error,
+}: TeamInfo & {
+  onUpdateTeamInfo: (values: TeamInfo) => void;
+  saveState: SaveState;
+  error: string;
+}) {
+  const [values, setValues] = useState({ teamName, manager });
+  const [submitted, setSubmitted] = useState(false);
+  const changed = values.teamName.trim() !== teamName || values.manager.trim() !== manager;
+  const saving = saveState === "saving" || saveState === "dirty";
+
+  return (
+    <form
+      className="mb-6"
+      onSubmit={(event) => {
+        event.preventDefault();
+        const next = { teamName: values.teamName.trim(), manager: values.manager.trim() };
+        if (!next.teamName || !next.manager || saving || saveState === "conflict") return;
+        onUpdateTeamInfo(next);
+        setSubmitted(true);
+      }}
+    >
+      <label>
+        自チーム名
+        <Input
+          required
+          maxLength={80}
+          value={values.teamName}
+          onChange={(event) => setValues((current) => ({ ...current, teamName: event.target.value }))}
+        />
+      </label>
+      <label>
+        監督名
+        <Input
+          required
+          maxLength={80}
+          value={values.manager}
+          onChange={(event) => setValues((current) => ({ ...current, manager: event.target.value }))}
+        />
+      </label>
+      <button
+        type="submit"
+        className="primary full"
+        disabled={saving || saveState === "conflict" || !values.teamName.trim() || !values.manager.trim() || (!changed && saveState !== "error")}
+      >
+        チーム情報を保存
+      </button>
+      {submitted && !changed && <p className={`schedule-form-save-state ${saveState}`} role="status"><SaveStateLabel state={saveState} /></p>}
+      {error && <p className="error-message" role="alert">{error}</p>}
+      {saveState === "conflict" && <p className="modal-description">この画面を閉じ、オーダー画面で最新データを読み込んでから再度編集してください。</p>}
+    </form>
+  );
+}
 
 /**
- * チーム設定モーダル（共通パスワードの変更 + ログアウト）。
+ * チーム設定モーダル（管理者のチーム情報・共通パスワード変更 + ログアウト）。
  * フォームの状態はこの中だけで完結させています。
  *
  * @param onRequestLogout 失敗時は throw してください。メッセージをここで表示します。
@@ -17,11 +80,21 @@ export function SettingsModal({
   onClose,
   onRequestLogout,
   member,
+  teamName,
+  manager,
+  onUpdateTeamInfo,
+  saveState,
+  error,
 }: {
   open: boolean;
   onClose: () => void;
   onRequestLogout: () => Promise<void>;
   member: AuthMember | null;
+  teamName: string;
+  manager: string;
+  onUpdateTeamInfo: (values: TeamInfo) => void;
+  saveState: SaveState;
+  error: string;
 }) {
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -70,12 +143,22 @@ export function SettingsModal({
       title="チームの設定"
       description={member?.isAdmin
         ? "共通パスワードを変更すると、ほかの端末は再ログインが必要です。"
-        : "共通パスワードの変更は管理者のみ行えます。"}
+        : "チーム情報・共通パスワードの変更は管理者のみ行えます。"}
     >
       {member && (
         <p className="modal-description">
           この端末のメンバー：{member.name}{member.isAdmin ? "（管理者）" : ""}
         </p>
+      )}
+      {open && member?.isAdmin && (
+        <TeamInfoForm
+          key={member.id}
+          teamName={teamName}
+          manager={manager}
+          onUpdateTeamInfo={onUpdateTeamInfo}
+          saveState={saveState}
+          error={error}
+        />
       )}
       {member?.isAdmin && (
         <form onSubmit={submit}>

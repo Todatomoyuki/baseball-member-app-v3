@@ -1,11 +1,13 @@
--- ローカル開発用。0007_schedules.sql 適用後に実行してください。
--- チーム・予定・出欠・道具・成績を初期化し、YGファイヤーズの選手16名を登録します。
+-- ローカル開発用。0009_schedule_lineups.sql 適用後に実行してください。
+-- チーム・予定・出欠・試合別スタメン・道具・成績を初期化し、YGファイヤーズの選手16名を登録します。
 -- セッション・端末とメンバーの紐づけも初期化します。再ログインが必要です。
 -- 共通パスワードと旧JSONバックアップ（*_state）は変更しません。
 
 DELETE FROM sessions;
 DELETE FROM member_devices;
 DELETE FROM schedule_responses;
+DELETE FROM schedule_lineup_slots;
+DELETE FROM schedule_lineups;
 DELETE FROM schedule_games;
 DELETE FROM plate_appearances;
 DELETE FROM player_game_stats;

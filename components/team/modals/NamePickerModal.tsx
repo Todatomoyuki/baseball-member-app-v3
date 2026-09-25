@@ -1,7 +1,8 @@
 "use client";
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { MapPin, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { mapLinks } from "@/lib/schedule";
 import { Modal } from "../common/Modal";
 
 type NamePickerProps = {
@@ -16,6 +17,8 @@ type NamePickerProps = {
   options: string[];
   maxLength?: number;
   allowClear?: boolean;
+  /** 入力中の場所名を外部の地図で検索するリンクを表示する。 */
+  mapSearch?: boolean;
   onSelect: (name: string, isNew: boolean) => void;
 };
 
@@ -29,12 +32,13 @@ export function NamePickerModal(props: NamePickerProps) {
 }
 
 function NamePickerBody({
-  placeholder, searchLabel, emptyMessage, options, maxLength = 80, allowClear = false, onSelect,
+  placeholder, searchLabel, emptyMessage, options, maxLength = 80, allowClear = false, mapSearch = false, onSelect,
 }: NamePickerProps) {
   const [query, setQuery] = useState("");
 
   const trimmed = query.trim();
   const canAdd = !!trimmed && !options.includes(trimmed);
+  const maps = mapSearch ? mapLinks({ location: trimmed }) : null;
 
   return (
       <div className="picker-body">
@@ -45,6 +49,12 @@ function NamePickerBody({
           aria-label={searchLabel}
           maxLength={maxLength}
         />
+        {maps && (
+          <div className="schedule-map-links" aria-label="入力した場所を地図で検索">
+            <a href={maps.google} target="_blank" rel="noopener noreferrer"><MapPin size={15} />Google マップで検索</a>
+            <a href={maps.apple} target="_blank" rel="noopener noreferrer"><MapPin size={15} />Apple マップで検索</a>
+          </div>
+        )}
         <div className="picker-list">
           {allowClear && <button type="button" onClick={() => onSelect("", false)}>未設定にする</button>}
           {options

@@ -71,11 +71,13 @@ export function TeamApp() {
 
   const { data, edit } = team;
   const canEditLineup = team.member?.canEditLineup === true;
+  const lineupSwitching = data.scheduleId !== team.attendanceScheduleId;
+  const canEditCurrentLineup = canEditLineup && !lineupSwitching;
   const editLineup = useCallback(
     (fn: (current: TeamData) => TeamData) => {
-      if (canEditLineup) edit(fn);
+      if (canEditCurrentLineup) edit(fn);
     },
-    [canEditLineup, edit],
+    [canEditCurrentLineup, edit],
   );
   const { pick, setPick, positionIndex, setPositionIndex, setEditor } = ui;
 
@@ -137,6 +139,7 @@ export function TeamApp() {
     )
       return;
     await team.logout();
+    setScheduleEditorRequest(null);
     ui.setSettings(false);
     pdf.clear();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -186,7 +189,7 @@ export function TeamApp() {
   const nameOptions = scheduleNameOptions(team.schedules, {
     title: [...data.tournaments, data.tournament],
     opponent: [...data.opponents, data.opponent],
-    location: [data.location],
+    location: [...data.locations, data.location],
   });
 
   return (
@@ -234,8 +237,8 @@ export function TeamApp() {
           <PageHeading
             teamName={data.teamName}
             pdfBusy={pdf.busy}
-            pdfDisabled={pdf.disabled}
-            pdfDisabledReason={pdf.disabledReason}
+            pdfDisabled={pdf.disabled || lineupSwitching}
+            pdfDisabledReason={lineupSwitching ? "選択した試合のスタメンを読み込んでいます。" : pdf.disabledReason}
             onCreatePdf={() => void pdf.create()}
           />
 
@@ -270,6 +273,7 @@ export function TeamApp() {
               }}
               edit={editLineup}
               readOnly={!canEditLineup}
+              selectionDisabled={team.saveState !== "saved"}
               bench={bench}
               absent={absent}
               infoOpen={ui.infoOpen}
@@ -298,8 +302,8 @@ export function TeamApp() {
               ui.setTab(ui.tab === "order" ? "players" : "order")
             }
             pdfBusy={pdf.busy}
-            pdfDisabled={pdf.disabled}
-            pdfDisabledReason={pdf.disabledReason}
+            pdfDisabled={pdf.disabled || lineupSwitching}
+            pdfDisabledReason={lineupSwitching ? "選択した試合のスタメンを読み込んでいます。" : pdf.disabledReason}
             onCreatePdf={() => void pdf.create()}
           />
         </>
@@ -314,7 +318,7 @@ export function TeamApp() {
       />
 
       <PlayerEditorModal
-        canEditLineup={canEditLineup}
+        canEditLineup={canEditCurrentLineup}
         target={ui.editor}
         bench={bench}
         absent={absent}
@@ -325,7 +329,7 @@ export function TeamApp() {
       />
 
       <PlayerPickerModal
-        target={canEditLineup ? ui.pick : null}
+        target={canEditCurrentLineup ? ui.pick : null}
         players={data.players}
         bench={bench}
         absent={absent}
@@ -340,7 +344,7 @@ export function TeamApp() {
       />
 
       <PositionPickerModal
-        index={canEditLineup ? ui.positionIndex : null}
+        index={canEditCurrentLineup ? ui.positionIndex : null}
         data={data}
         onClose={() => ui.setPositionIndex(null)}
         onSelect={changePosition}
@@ -349,6 +353,13 @@ export function TeamApp() {
       <SettingsModal
         open={ui.settings}
         member={team.member}
+        teamName={data.teamName}
+        manager={data.manager}
+        saveState={team.saveState}
+        error={team.error}
+        onUpdateTeamInfo={(values) => {
+          if (team.member?.isAdmin) edit((current) => ({ ...current, ...values }));
+        }}
         onClose={() => ui.setSettings(false)}
         onRequestLogout={requestLogout}
       />
