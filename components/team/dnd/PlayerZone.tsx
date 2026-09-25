@@ -9,14 +9,17 @@ import type { ReactNode } from "react";
 export function PlayerZone({
   zone,
   children,
+  disabled = false,
 }: {
   zone: "bench" | "absent";
   children: ReactNode;
+  disabled?: boolean;
 }) {
   const key = `${zone}-zone`;
   const { setNodeRef, isOver } = useDroppable({
     id: `player:${key}`,
     data: { kind: "player", key },
+    disabled,
   });
 
   return (

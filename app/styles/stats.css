@@ -1,17 +1,5 @@
 .stats-page {
-  padding: 32px 0 48px;
-}
-.stats-heading {
-  display: flex;
-  justify-content: space-between;
-  align-items: end;
-  gap: 24px;
-  margin-bottom: 24px;
-}
-.stats-heading p:not(.eyebrow) {
-  margin: 9px 0 0;
-  color: #718396;
-  font-size: 14px;
+  padding-bottom: 48px;
 }
 .stats-save-status {
   color: #4d657b;
@@ -41,7 +29,6 @@
   width: 100%;
   min-width: 0;
   max-width: 100%;
-  overflow: hidden;
 }
 .stats-player-field label {
   margin-bottom: 8px;
@@ -55,15 +42,9 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.stats-player-select:focus {
-  border-color: #d5e0e9;
-  background: #fff;
-  outline: none;
-  box-shadow: none;
-}
 .stats-game-fields {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 16px;
   margin-bottom: 20px;
 }
@@ -75,9 +56,6 @@
 }
 .stats-game-number-field {
   min-width: 0;
-}
-.stats-game-fields + label {
-  margin-top: 28px;
 }
 .stats-game-number-control {
   display: flex;
@@ -94,7 +72,7 @@
 .stats-game-number-input {
   display: inline-block;
   width: 68px;
-  height: 34px;
+  height: 46px;
   padding: 0 8px;
   font-size: 14px;
 }
@@ -104,11 +82,12 @@
 }
 .plate-entry-grid {
   display: grid;
-  grid-template-columns: repeat(7, minmax(80px, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 10px;
 }
 .plate-entry {
   position: relative;
+  min-width: 0;
 }
 .plate-square {
   width: 100%;
@@ -128,16 +107,6 @@
 .plate-square.filled:hover {
   border-color: #0876c9;
   background: #f8fbfd;
-}
-.plate-square:focus {
-  border-color: #cbd9e5;
-  background: #fff !important;
-  outline: none;
-  box-shadow: none;
-}
-.plate-square.filled:focus {
-  border-color: #0876c9;
-  background: #f8fbfd !important;
 }
 .plate-square small,
 .plate-square strong {
@@ -163,6 +132,11 @@
     border-color: #0876c9;
   }
 }
+.plate-square[aria-expanded="true"],
+.plate-square[aria-expanded="true"]:hover {
+  border-color: #0876c9;
+  background: #eef7fd;
+}
 .scoring-position-field {
   display: flex;
   flex-direction: row;
@@ -170,7 +144,9 @@
   justify-content: center;
   gap: 6px;
   margin: 8px 0 0;
+  min-height: 32px;
   font-size: 11px;
+  cursor: pointer;
 }
 .scoring-position-field span {
   color: #718396;
@@ -195,6 +171,7 @@
   display: none;
 }
 .plate-add-button {
+  align-self: start;
   min-height: 78px;
   padding: 8px 5px;
   border: 1px dashed #8eb6d1;
@@ -208,11 +185,11 @@
   background: #eef7fd;
   border-color: #0876c9;
 }
-.plate-add-button:focus {
-  background: #fff !important;
-  border-color: #8eb6d1;
-  outline: none;
-  box-shadow: none;
+.stats-entry-card button:focus-visible,
+.stats-entry-card select:focus-visible,
+.stats-entry-card input:focus-visible {
+  outline: 2px solid #0876c9;
+  outline-offset: 3px;
 }
 @media (hover: none) {
   .plate-add-button:hover {
@@ -243,12 +220,17 @@
   box-shadow: 0 8px 22px #16324f20;
   transform: translateX(-50%);
 }
-.plate-entry:first-child .plate-result-menu {
+.plate-entry:nth-child(6n + 1) .plate-result-menu {
   left: 0;
   transform: none;
 }
+.plate-entry:nth-child(6n) .plate-result-menu {
+  left: auto;
+  right: 0;
+  transform: none;
+}
 .plate-result-menu button {
-  min-height: 34px;
+  min-height: 40px;
   border-radius: 5px;
   background: #f1f6fa;
   color: #16324f;
@@ -256,6 +238,18 @@
 }
 .plate-result-menu button:hover {
   background: #dceefb;
+}
+.plate-result-menu button[aria-pressed="true"] {
+  background: #0876c9;
+  color: #fff;
+}
+.plate-result-menu .plate-clear-button {
+  border: 1px solid #cbd9e5;
+  background: #fff;
+  color: #617488;
+}
+.plate-result-menu button:disabled {
+  cursor: default;
 }
 .stats-number-grid {
   display: grid;
@@ -417,14 +411,6 @@
   }
 }
 @media (max-width: 700px) {
-  .stats-page {
-    padding-top: 25px;
-  }
-  .stats-heading {
-    align-items: stretch;
-    flex-direction: column;
-    gap: 14px;
-  }
   .stats-entry-card {
     padding: 20px 18px;
   }
@@ -452,11 +438,28 @@
     min-width: 0;
     padding: 0;
   }
-  .stats-player-select {
-    font-size: 14px;
+  .stats-player-select,
+  .stats-game-number-input,
+  .stats-number-grid select {
+    font-size: 16px;
   }
   .plate-entry-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .plate-entry:nth-child(odd) .plate-result-menu {
+    left: 0;
+    right: auto;
+    transform: none;
+  }
+  .plate-entry:nth-child(even) .plate-result-menu {
+    left: auto;
+    right: 0;
+    transform: none;
+  }
+  .plate-result-menu button,
+  .scoring-position-field,
+  .stats-number-grid select {
+    min-height: 44px;
   }
   .stats-number-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -486,4 +489,9 @@
   }
   .stats-summary-row.first { min-width: 650px; }
   .stats-summary-row.second { min-width: 650px; }
+}
+@media (max-width: 360px) {
+  .stats-game-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

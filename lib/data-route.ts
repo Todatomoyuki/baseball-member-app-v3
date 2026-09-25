@@ -2,7 +2,7 @@ import { validateData } from "./model";
 import { validateEquipmentData } from "./equipment";
 import { gameKey, parseGameKey, validateStatsData, type StatsData } from "./stats";
 import { json, readBody, renewSessionHeaders, sameOrigin } from "./server";
-import { decodeData, encodeData, readSnapshot, writeChanges, StatsPermissionError, type DataScope, type ScopeData } from "./normalized-store";
+import { decodeData, encodeData, readSnapshot, writeChanges, StatsPermissionError, LineupPermissionError, type DataScope, type ScopeData } from "./normalized-store";
 
 const validators = { team: validateData, equipment: validateEquipmentData, stats: validateStatsData };
 const labels = { team: "チーム", equipment: "道具", stats: "成績" };
@@ -59,7 +59,7 @@ export function dataRoute(scope: DataScope) {
         if (nextRevision === null) return conflict();
         return json({ revision: nextRevision }, 200, renewSessionHeaders(req));
       } catch (error) {
-        if (error instanceof StatsPermissionError) return json({ error: error.message }, 403);
+        if (error instanceof StatsPermissionError || error instanceof LineupPermissionError) return json({ error: error.message }, 403);
         if (error instanceof Error && /FOREIGN KEY constraint failed/i.test(error.message)) {
           return json({ error: "参照先の選手・試合がありません。最新データを読み込んでください。" }, 400);
         }

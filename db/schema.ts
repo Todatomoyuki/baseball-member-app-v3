@@ -32,6 +32,7 @@ export const players = sqliteTable("players", {
     kana: text("kana").notNull(),
     // Authorization belongs to the stable member ID, not the editable name.
     isAdmin: integer("is_admin").notNull().default(0),
+    canEditLineup: integer("can_edit_lineup").notNull().default(0),
     // NULL retains a former member for equipment/statistics references.
     sortOrder: integer("sort_order"),
     benchOrder: integer("bench_order"),

@@ -180,7 +180,8 @@ export function useTeamData() {
             current?.id === r.member.id &&
             current.name === r.member.name &&
             current.number === r.member.number &&
-            current.isAdmin === r.member.isAdmin
+            current.isAdmin === r.member.isAdmin &&
+            current.canEditLineup === r.member.canEditLineup
               ? current
               : r.member,
           );

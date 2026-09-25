@@ -45,7 +45,7 @@ export function StatsView({
   onSaveStateChange?: (state: SaveState) => void;
 }) {
   const [registered, setRegistered] = useState(false);
-  const registrationTimers = useRef(new Set<number>());
+  const registrationTimer = useRef<number | null>(null);
   const stats = useStatsData();
   const [selectedPlayerId, setSelectedPlayerId] = useState(member.id);
   const [selectedDate, setSelectedDate] = useState(todayLocalDate);
@@ -56,10 +56,9 @@ export function StatsView({
   const [entryReset, setEntryReset] = useState(false);
 
   useEffect(() => {
-    const timers = registrationTimers.current;
     return () => {
-      timers.forEach(window.clearTimeout);
-      timers.clear();
+      if (registrationTimer.current !== null)
+        window.clearTimeout(registrationTimer.current);
     };
   }, []);
 
@@ -71,7 +70,11 @@ export function StatsView({
     if (openPlate === null) return;
     const closeOnOutsideInteraction = (event: FocusEvent | PointerEvent) => {
       const target = event.target;
-      if (!(target instanceof Element) || !target.closest(".plate-entry"))
+      if (
+        !(target instanceof Element) ||
+        target.closest(".plate-entry")?.getAttribute("data-plate-index") !==
+          String(openPlate)
+      )
         setOpenPlate(null);
     };
     document.addEventListener("focusin", closeOnOutsideInteraction);
@@ -111,9 +114,11 @@ export function StatsView({
       ? (currentPlayers[selectedPlayer.id] ?? emptyPlayerStats())
       : emptyPlayerStats();
   const canRegister = Boolean(
-    selectedPlayer &&
-    selectedValues.plateAppearances.some((result) => result !== null),
+    selectedDate &&
+      selectedPlayer &&
+      selectedValues.plateAppearances.some((result) => result !== null),
   );
+  const isSaving = stats.saveState === "dirty" || stats.saveState === "saving";
   const sortByNumber = (a: Player, b: Player) => {
     const numberDiff = Number(a.number) - Number(b.number);
     return Number.isNaN(numberDiff)
@@ -123,8 +128,17 @@ export function StatsView({
   const selectablePlayers = players
     .filter((player) => canEditPlayer(player.id))
     .sort(sortByNumber);
+  const clearRegistrationMessage = () => {
+    if (registrationTimer.current !== null) {
+      window.clearTimeout(registrationTimer.current);
+      registrationTimer.current = null;
+    }
+    setRegistered(false);
+  };
   const editPlayer = (updater: (current: PlayerStats) => PlayerStats) => {
-    if (!selectedPlayer || !canEditPlayer(selectedPlayer.id)) return;
+    if (!selectedDate || !selectedPlayer || !canEditPlayer(selectedPlayer.id))
+      return;
+    clearRegistrationMessage();
     setEntryReset(false);
     stats.edit((current: StatsData) => ({
       ...current,
@@ -133,18 +147,22 @@ export function StatsView({
         [selectedGameKey]: {
           ...(current.games[selectedGameKey] ?? {}),
           [selectedPlayer.id]: updater(
-            current.games[selectedGameKey]?.[selectedPlayer.id] ??
-              emptyPlayerStats(),
+            entryReset
+              ? emptyPlayerStats()
+              : (current.games[selectedGameKey]?.[selectedPlayer.id] ??
+                emptyPlayerStats()),
           ),
         },
       },
     }));
   };
-  const updatePlate = (index: number, result: PlateAppearanceResult) => {
+  const updatePlate = (index: number, result: PlateAppearanceResult | null) => {
     editPlayer((current) => {
       const plateAppearances = [...current.plateAppearances];
       plateAppearances[index] = result;
-      return { ...current, plateAppearances };
+      const scoringPosition = [...current.scoringPosition];
+      if (result === null) scoringPosition[index] = false;
+      return { ...current, plateAppearances, scoringPosition };
     });
     setOpenPlate(null);
   };
@@ -201,6 +219,7 @@ export function StatsView({
     playerId: string,
   ) => {
     if (!canEditPlayer(playerId)) return;
+    clearRegistrationMessage();
     setSelectedDate(game.date);
     setSelectedGameNumber(game.number);
     setSelectedPlayerId(playerId);
@@ -209,22 +228,21 @@ export function StatsView({
     setStatsTab("entry");
     window.scrollTo({ top: 0, behavior: "instant" });
   };
-  const registerAndReset = () => {
-    setSelectedPlayerId(member.id);
+  const registerEntry = () => {
+    if (!canRegister || stats.saveState !== "saved") return;
+    clearRegistrationMessage();
     setOpenPlate(null);
-    setEntryReset(false);
-    setStatsTab("entry");
-
     setRegistered(true);
 
-    const timer = window.setTimeout(() => {
-      registrationTimers.current.delete(timer);
+    registrationTimer.current = window.setTimeout(() => {
+      registrationTimer.current = null;
       setRegistered(false);
     }, REGISTRATION_MESSAGE_MS);
-    registrationTimers.current.add(timer);
   };
   const resetEntry = () => {
     if (!selectedPlayer || !canEditPlayer(selectedPlayer.id)) return;
+    clearRegistrationMessage();
+    // Keep the reset local until the next edit replaces this entry.
     setEntryReset(true);
     setOpenPlate(null);
   };
@@ -242,14 +260,16 @@ export function StatsView({
 
   return (
     <section className="stats-page">
-      <header className="stats-heading">
+      <header className="page-heading">
         <div>
           <p className="eyebrow">GAME STATS</p>
           <h1>{statsTab === "confirmation" ? "成績登録確認" : "成績登録"}</h1>
           <p>
             {statsTab === "confirmation"
               ? "試合ごとの成績を確認できます。"
-              : "試合日・試合番号・選手を選択して成績を入力してください。"}
+              : member.isAdmin
+                ? "試合日・試合番号・選手を選択して成績を入力してください。"
+                : "試合日・試合番号を選択して自分の成績を入力してください。"}
           </p>
         </div>
       </header>
@@ -263,14 +283,22 @@ export function StatsView({
         <button
           className={statsTab === "entry" ? "active" : ""}
           type="button"
-          onClick={() => setStatsTab("entry")}
+          onClick={() => {
+            setStatsTab("entry");
+            setOpenPlate(null);
+            clearRegistrationMessage();
+          }}
         >
           成績入力
         </button>
         <button
           className={statsTab === "confirmation" ? "active" : ""}
           type="button"
-          onClick={() => setStatsTab("confirmation")}
+          onClick={() => {
+            setStatsTab("confirmation");
+            setOpenPlate(null);
+            clearRegistrationMessage();
+          }}
         >
           成績登録確認
         </button>
@@ -357,16 +385,16 @@ export function StatsView({
                 value={selectedDate}
                 onChange={(event) => {
                   setSelectedDate(event.target.value);
-                  setSelectedPlayerId(member.id);
                   setEntryReset(false);
                   setOpenPlate(null);
+                  clearRegistrationMessage();
                 }}
               />
             </div>
             <div className="stats-game-number-field">
+              <label htmlFor="stats-game-number">試合番号</label>
               <div className="stats-game-number-control">
                 <select
-                  aria-label="試合番号"
                   className="stats-game-number-input"
                   id="stats-game-number"
                   value={selectedGameNumber}
@@ -374,9 +402,9 @@ export function StatsView({
                     setSelectedGameNumber(
                       Number.parseInt(event.target.value, 10),
                     );
-                    setSelectedPlayerId(member.id);
                     setEntryReset(false);
                     setOpenPlate(null);
+                    clearRegistrationMessage();
                   }}
                 >
                   {GAME_NUMBERS.map((number) => (
@@ -389,33 +417,30 @@ export function StatsView({
               </div>
             </div>
           </div>
-          <div className="stats-player-field">
-            <label htmlFor="stats-player">
-              {member.isAdmin ? "選手を選択" : "選手"}
-            </label>
-            <select
-              className="stats-player-select"
-              id="stats-player"
-              value={member.isAdmin ? selectedPlayerId : member.id}
-              disabled={!member.isAdmin}
-              onChange={(event) => {
-                if (!member.isAdmin) return;
-                setSelectedPlayerId(event.target.value);
-                setEntryReset(false);
-                setOpenPlate(null);
-              }}
-            >
-              {member.isAdmin && (
+          {member.isAdmin && (
+            <div className="stats-player-field">
+              <label htmlFor="stats-player">選手を選択</label>
+              <select
+                className="stats-player-select"
+                id="stats-player"
+                value={selectedPlayerId}
+                onChange={(event) => {
+                  setSelectedPlayerId(event.target.value);
+                  setEntryReset(false);
+                  setOpenPlate(null);
+                  clearRegistrationMessage();
+                }}
+              >
                 <option value="">選手を選択してください</option>
-              )}
-              {selectablePlayers.map((player) => (
-                <option key={player.id} value={player.id}>
-                  #{player.number} {player.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          {selectedPlayer ? (
+                {selectablePlayers.map((player) => (
+                  <option key={player.id} value={player.id}>
+                    #{player.number} {player.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          {selectedPlayer && selectedDate ? (
             <>
               <h2 className="stats-section-heading">打席結果</h2>
               <div className="plate-entry-grid">
@@ -423,7 +448,17 @@ export function StatsView({
                   (result: PlateAppearanceResult | null, index: number) => (
                     <div
                       className="plate-entry"
+                      data-plate-index={index}
                       key={index}
+                      onKeyDown={(event) => {
+                        if (event.key === "Escape" && openPlate === index) {
+                          event.preventDefault();
+                          setOpenPlate(null);
+                          event.currentTarget
+                            .querySelector<HTMLButtonElement>(".plate-square")
+                            ?.focus();
+                        }
+                      }}
                       onBlur={(event) => {
                         if (
                           !event.currentTarget.contains(
@@ -436,6 +471,12 @@ export function StatsView({
                       <button
                         type="button"
                         className={`plate-square ${result ? "filled" : ""}${isHitResult(result) ? " hit-result" : ""}`}
+                        aria-expanded={openPlate === index}
+                        aria-controls={
+                          openPlate === index
+                            ? `plate-result-menu-${index}`
+                            : undefined
+                        }
                         onClick={() =>
                           setOpenPlate(openPlate === index ? null : index)
                         }
@@ -444,17 +485,41 @@ export function StatsView({
                         <strong>{result ?? "選択"}</strong>
                       </button>
                       {openPlate === index && (
-                        <div className="plate-result-menu">
+                        <div
+                          className="plate-result-menu"
+                          id={`plate-result-menu-${index}`}
+                          role="group"
+                          aria-label={`${index + 1}打席目の結果`}
+                          onClick={(event) => {
+                            event.currentTarget
+                              .closest(".plate-entry")
+                              ?.querySelector<HTMLButtonElement>(".plate-square")
+                              ?.focus();
+                          }}
+                        >
                           {PLATE_APPEARANCE_RESULTS.map((option) => (
                             <button
                               type="button"
                               key={option}
+                              aria-pressed={result === option}
                               onPointerDown={(event) => event.preventDefault()}
                               onClick={() => updatePlate(index, option)}
                             >
                               {option}
                             </button>
                           ))}
+                          <button
+                            type="button"
+                            className="plate-clear-button"
+                            disabled={
+                              result === null &&
+                              selectedValues.scoringPosition[index] !== true
+                            }
+                            onPointerDown={(event) => event.preventDefault()}
+                            onClick={() => updatePlate(index, null)}
+                          >
+                            未入力に戻す
+                          </button>
                         </div>
                       )}
                       <label className="scoring-position-field">
@@ -509,22 +574,26 @@ export function StatsView({
             </>
           ) : (
             <p className="stats-entry-placeholder">
-              試合日・試合番号・選手を選択すると成績入力欄が表示されます。
+              {!selectedDate
+                ? "試合日を選択してください。"
+                : member.isAdmin
+                  ? "選手を選択すると成績入力欄が表示されます。"
+                  : "登録されている選手情報を確認できません。"}
             </p>
           )}
           <div className="stats-actions">
             <button
               type="button"
               className="primary"
-              disabled={!canRegister}
-              onClick={registerAndReset}
+              disabled={!canRegister || stats.saveState !== "saved"}
+              onClick={registerEntry}
             >
-              登録する
+              {isSaving ? "保存中…" : "登録する"}
             </button>
             <button
               type="button"
               className="secondary"
-              disabled={!selectedPlayer}
+              disabled={!selectedPlayer || !selectedDate || entryReset}
               onClick={resetEntry}
             >
               入力をリセット

@@ -87,7 +87,7 @@ export async function POST(req: Request) {
         const deviceHash = await digest(deviceValue);
         const device = validToken(savedDevice)
             ? await db().prepare(`
-                SELECT d.hash,p.id,p.name,p.number,p.is_admin,p.sort_order
+                SELECT d.hash,p.id,p.name,p.number,p.is_admin,p.can_edit_lineup,p.sort_order
                 FROM member_devices d JOIN players p ON p.id=d.player_id WHERE d.hash=?
             `).bind(deviceHash).first<{
                 hash: string;
@@ -95,6 +95,7 @@ export async function POST(req: Request) {
                 name: string;
                 number: string;
                 is_admin: number;
+                can_edit_lineup: number;
                 sort_order: number | null;
             }>()
             : null;
@@ -106,6 +107,7 @@ export async function POST(req: Request) {
             name: device.name,
             number: device.number,
             isAdmin: device.is_admin === 1,
+            canEditLineup: device.can_edit_lineup === 1,
         } : null;
         const members = member ? undefined : await memberChoices();
         const sessionValue = random();
@@ -157,8 +159,8 @@ export async function PATCH(req: Request) {
             return json({ error: "登録選手からあなたの名前を選んでください。" }, 400);
         }
         const member = await db().prepare(
-            "SELECT id,name,number,is_admin FROM players WHERE id=? AND sort_order IS NOT NULL",
-        ).bind(body.playerId).first<{ id: string; name: string; number: string; is_admin: number }>();
+            "SELECT id,name,number,is_admin,can_edit_lineup FROM players WHERE id=? AND sort_order IS NOT NULL",
+        ).bind(body.playerId).first<{ id: string; name: string; number: string; is_admin: number; can_edit_lineup: number }>();
         if (!member) return json({ error: "選択したメンバーは現在の登録選手に含まれていません。" }, 400);
 
         const savedDevice = deviceToken(req);
@@ -192,6 +194,7 @@ export async function PATCH(req: Request) {
             name: member.name,
             number: member.number,
             isAdmin: member.is_admin === 1,
+            canEditLineup: member.can_edit_lineup === 1,
         }), 200, sessionHeaders(req, token(req), deviceValue, true));
     } catch (error) {
         console.error("[auth:PATCH]", error);

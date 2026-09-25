@@ -39,6 +39,7 @@ export function DragButton({
       {...drag.listeners}
       {...drag.attributes}
       type="button"
+      disabled={disabled}
       onClick={onClick}
       className={`${className} drag-button ${drag.isDragging ? "dragging" : ""} ${
         drop.isOver ? "drop-over" : ""

@@ -9,6 +9,7 @@ import type { PlayerEditorTarget, PlayerLocation } from "../types";
  * target が "new" なら新規、Player オブジェクトなら編集です。
  */
 export function PlayerEditorModal({
+  canEditLineup,
   target,
   bench,
   absent,
@@ -17,6 +18,7 @@ export function PlayerEditorModal({
   onDelete,
   onToggleAbsent,
 }: {
+  canEditLineup: boolean;
   target: PlayerEditorTarget;
   bench: Player[];
   absent: Player[];
@@ -50,8 +52,8 @@ export function PlayerEditorModal({
           location={location}
           onClose={onClose}
           onSave={onSave}
-          onMove={editing ? () => onToggleAbsent(editing) : undefined}
-          onDelete={editing ? () => onDelete(editing) : undefined}
+          onMove={editing && canEditLineup ? () => onToggleAbsent(editing) : undefined}
+          onDelete={editing && canEditLineup ? () => onDelete(editing) : undefined}
         />
       )}
     </Modal>

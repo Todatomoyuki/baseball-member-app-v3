@@ -9,6 +9,7 @@ import { OrderPanel } from "./OrderPanel";
  */
 export function LineupWorkspace({
   data,
+  readOnly,
   edit,
   bench,
   absent,
@@ -24,6 +25,7 @@ export function LineupWorkspace({
   onAddPlayer,
 }: {
   data: TeamData;
+  readOnly: boolean;
   edit: (fn: (d: TeamData) => TeamData) => void;
   bench: Player[];
   absent: Player[];
@@ -39,9 +41,10 @@ export function LineupWorkspace({
   onAddPlayer: () => void;
 }) {
   return (
-    <div className="workspace">
+    <div className={`workspace ${readOnly ? "lineup-readonly" : ""}`}>
       <MatchInfoPanel
         data={data}
+        readOnly={readOnly}
         edit={edit}
         infoOpen={infoOpen}
         onToggleInfo={onToggleInfo}
@@ -52,6 +55,7 @@ export function LineupWorkspace({
       />
       <OrderPanel
         data={data}
+        readOnly={readOnly}
         edit={edit}
         bench={bench}
         absent={absent}

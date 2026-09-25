@@ -9,6 +9,7 @@ import { DragButton } from "../dnd/DragButton";
  */
 export function LineupRow({
   index,
+  readOnly,
   position,
   player,
   onPickPlayer,
@@ -16,6 +17,7 @@ export function LineupRow({
 }: {
   /** 0 始まりの打順インデックス */
   index: number;
+  readOnly: boolean;
   position: Position;
   player?: Player;
   onPickPlayer: () => void;
@@ -26,21 +28,23 @@ export function LineupRow({
       <DragButton
         item={{ kind: "order", key: String(index) }}
         className="order-number"
-        label={`${index + 1}番の打順を移動`}
+        label={readOnly ? `${index + 1}番` : `${index + 1}番の打順を移動`}
+        disabled={readOnly}
       >
         <span>{index + 1}</span>
-        <GripVertical size={12} />
+        {!readOnly && <GripVertical size={12} />}
       </DragButton>
 
       <DragButton
         item={{ kind: "player", key: `slot:${index}` }}
         className={`player-slot ${!player ? "empty" : ""}`}
-        label={`${index + 1}番 ${player?.name ?? "選手を選択"}`}
+        label={`${index + 1}番 ${player?.name ?? (readOnly ? "未設定" : "選手を選択")}`}
         onClick={onPickPlayer}
+        disabled={readOnly}
       >
-        <GripVertical size={16} />
-        <span className="player-name">{player?.name ?? "選手を選択"}</span>
-        <span className="jersey">{player ? `#${player.number}` : "＋"}</span>
+        {!readOnly && <GripVertical size={16} />}
+        <span className="player-name">{player?.name ?? (readOnly ? "未設定" : "選手を選択")}</span>
+        <span className="jersey">{player ? `#${player.number}` : readOnly ? "—" : "＋"}</span>
       </DragButton>
 
       <DragButton
@@ -48,6 +52,7 @@ export function LineupRow({
         className="position"
         label={`${index + 1}番の守備 ${position}`}
         onClick={onPickPosition}
+        disabled={readOnly}
       >
         {position}
       </DragButton>

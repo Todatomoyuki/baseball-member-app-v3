@@ -5,6 +5,7 @@ import {
   benchPlayers,
   type Player,
   type Position,
+  type TeamData,
 } from "@/lib/model";
 
 import { useTeamData } from "./hooks/useTeamData";
@@ -67,6 +68,13 @@ export function TeamApp() {
   useLineupTool(team.data, team.auth);
 
   const { data, edit } = team;
+  const canEditLineup = team.member?.canEditLineup === true;
+  const editLineup = useCallback(
+    (fn: (current: TeamData) => TeamData) => {
+      if (canEditLineup) edit(fn);
+    },
+    [canEditLineup, edit],
+  );
   const { pick, setPick, positionIndex, setPositionIndex, setEditor } = ui;
 
   const bench = useMemo(() => benchPlayers(data), [data]);
@@ -76,20 +84,20 @@ export function TeamApp() {
 
   const selectPlayer = useCallback(
     (playerId: string | null) => {
-      if (pick === null) return;
-      edit(selectPlayerUpdater(pick, playerId));
+      if (!canEditLineup || pick === null) return;
+      editLineup(selectPlayerUpdater(pick, playerId));
       setPick(null);
     },
-    [edit, pick, setPick],
+    [canEditLineup, editLineup, pick, setPick],
   );
 
   const changePosition = useCallback(
     (position: Position) => {
-      if (positionIndex === null) return;
-      edit(setPositionUpdater(positionIndex, position));
+      if (!canEditLineup || positionIndex === null) return;
+      editLineup(setPositionUpdater(positionIndex, position));
       setPositionIndex(null);
     },
-    [edit, positionIndex, setPositionIndex],
+    [canEditLineup, editLineup, positionIndex, setPositionIndex],
   );
 
   /* ---------------- 名簿操作 ---------------- */
@@ -101,19 +109,21 @@ export function TeamApp() {
 
   const deletePlayer = useCallback(
     (player: Player) => {
+      if (!canEditLineup) return;
       if (!window.confirm(`${player.name}さんを名簿から削除しますか？`)) return;
-      edit(removePlayerUpdater(player.id));
+      editLineup(removePlayerUpdater(player.id));
       setEditor(null);
     },
-    [edit, setEditor],
+    [canEditLineup, editLineup, setEditor],
   );
 
   const toggleAbsent = useCallback(
     (player: Player) => {
-      edit(toggleAbsentUpdater(player.id));
+      if (!canEditLineup) return;
+      editLineup(toggleAbsentUpdater(player.id));
       setEditor(null);
     },
-    [edit, setEditor],
+    [canEditLineup, editLineup, setEditor],
   );
 
   /* ---------------- ログアウト ---------------- */
@@ -172,6 +182,7 @@ export function TeamApp() {
   return (
     <main className="app-shell">
       <TopBar
+        memberName={team.member.name}
         onBrandClick={() => ui.setAppMenuOpen(true)}
         onSettingsClick={() => ui.setSettings(true)}
       />
@@ -223,7 +234,8 @@ export function TeamApp() {
           {ui.tab === "order" ? (
             <LineupWorkspace
               data={data}
-              edit={edit}
+              edit={editLineup}
+              readOnly={!canEditLineup}
               bench={bench}
               absent={absent}
               infoOpen={ui.infoOpen}
@@ -272,6 +284,7 @@ export function TeamApp() {
       />
 
       <PlayerEditorModal
+        canEditLineup={canEditLineup}
         target={ui.editor}
         bench={bench}
         absent={absent}
@@ -282,14 +295,14 @@ export function TeamApp() {
       />
 
       <PlayerPickerModal
-        target={ui.pick}
+        target={canEditLineup ? ui.pick : null}
         players={data.players}
         bench={bench}
         absent={absent}
         slotCount={data.slots.length}
         onClose={() => ui.setPick(null)}
         onSelect={selectPlayer}
-        onShiftOrder={(index, delta) => edit(shiftOrderUpdater(index, delta))}
+        onShiftOrder={(index, delta) => editLineup(shiftOrderUpdater(index, delta))}
         onAddPlayer={() => {
           ui.setPick(null);
           ui.setEditor("new");
@@ -297,14 +310,14 @@ export function TeamApp() {
       />
 
       <PositionPickerModal
-        index={ui.positionIndex}
+        index={canEditLineup ? ui.positionIndex : null}
         data={data}
         onClose={() => ui.setPositionIndex(null)}
         onSelect={changePosition}
       />
 
       <NamePickerModal
-        open={ui.teamPicker}
+        open={canEditLineup && ui.teamPicker}
         onClose={() => ui.setTeamPicker(false)}
         title="相手チームを選択"
         description="登録済みのチームを検索、または新しく追加できます。"
@@ -313,13 +326,13 @@ export function TeamApp() {
         emptyMessage="チーム名を入力すると追加できます。"
         options={data.opponents}
         onSelect={(name, isNew) => {
-          edit(pickOpponentUpdater(name, isNew));
+          editLineup(pickOpponentUpdater(name, isNew));
           ui.setTeamPicker(false);
         }}
       />
 
       <NamePickerModal
-        open={ui.tournamentPicker}
+        open={canEditLineup && ui.tournamentPicker}
         onClose={() => ui.setTournamentPicker(false)}
         title="大会名を選択"
         description="過去の大会名を検索、または新しく追加できます。"
@@ -328,7 +341,7 @@ export function TeamApp() {
         emptyMessage="大会名を入力すると追加できます。"
         options={data.tournaments}
         onSelect={(name, isNew) => {
-          edit(pickTournamentUpdater(name, isNew));
+          editLineup(pickTournamentUpdater(name, isNew));
           ui.setTournamentPicker(false);
         }}
       />

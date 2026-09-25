@@ -3,6 +3,7 @@ export type AuthMember = {
     name: string;
     number: string;
     isAdmin: boolean;
+    canEditLineup: boolean;
 };
 
 export type LoginMember = Pick<AuthMember, "id" | "name" | "number">;

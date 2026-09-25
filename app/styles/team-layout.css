@@ -37,13 +37,26 @@
   color: #688095;
   font-weight: 600;
 }
-.team-badge {
+.login-member {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 260px;
   font-size: 13px;
   border: 1px solid #ccdce9;
   background: #fff;
   padding: 7px 12px;
   border-radius: 20px;
   color: #4d657b;
+}
+.login-member svg {
+  flex-shrink: 0;
+}
+.login-member > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .page-heading {
   display: flex;
@@ -346,6 +359,11 @@ footer {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
+  margin-left: 12px;
+}
+.header-right .icon-button {
+  flex-shrink: 0;
 }
 .icon-button {
   background: transparent;
@@ -987,7 +1005,7 @@ footer {
   .save-status {
     font-size: 12px;
   }
-  .team-badge {
+  .login-member {
     font-size: 12px;
   }
   .order-toolbar {
@@ -1051,6 +1069,19 @@ footer {
 .order-number {
   touch-action: none;
 }
+.lineup-readonly-note {
+  margin: 0 0 12px;
+  color: #718396;
+  font-size: 12px;
+}
+.lineup-readonly :is(button, select, input):disabled {
+  opacity: 1;
+  cursor: default;
+  -webkit-text-fill-color: currentColor;
+}
+.lineup-readonly .drag-button {
+  touch-action: pan-y;
+}
 @media (max-width: 760px) {
   .topbar {
     height: 54px;
@@ -1067,8 +1098,12 @@ footer {
   .brand small {
     font-size: 8px;
   }
-  .team-badge {
-    display: none;
+  .header-right {
+    gap: 7px;
+  }
+  .login-member {
+    max-width: 50vw;
+    padding: 5px 8px;
   }
   .icon-button {
     padding: 5px;

@@ -10,6 +10,7 @@ import { setFieldUpdater } from "../lib/lineup-actions";
  */
 export function MatchInfoPanel({
   data,
+  readOnly,
   edit,
   infoOpen,
   onToggleInfo,
@@ -19,6 +20,7 @@ export function MatchInfoPanel({
   onOpenTeamPicker,
 }: {
   data: TeamData;
+  readOnly: boolean;
   edit: (fn: (d: TeamData) => TeamData) => void;
   infoOpen: boolean;
   onToggleInfo: () => void;
@@ -37,7 +39,7 @@ export function MatchInfoPanel({
         <CalendarDays size={19} />
         <span>
           {data.date.replaceAll("-", " / ")}
-          <small>{data.opponent ? `vs ${data.opponent}` : "試合情報を入力"}</small>
+          <small>{data.opponent ? `vs ${data.opponent}` : readOnly ? "試合情報" : "試合情報を入力"}</small>
         </span>
         <ChevronDown size={18} />
       </button>
@@ -50,13 +52,14 @@ export function MatchInfoPanel({
           <button
             className="combobox-trigger"
             role="combobox"
-            aria-expanded={tournamentPickerOpen}
+            aria-expanded={!readOnly && tournamentPickerOpen}
+            disabled={readOnly}
             onClick={onOpenTournamentPicker}
           >
             <span className={!data.tournament ? "placeholder" : ""}>
-              {data.tournament || "大会を検索・追加"}
+              {data.tournament || (readOnly ? "未設定" : "大会を検索・追加")}
             </span>
-            <ChevronDown size={16} />
+            {!readOnly && <ChevronDown size={16} />}
           </button>
         </label>
 
@@ -64,6 +67,7 @@ export function MatchInfoPanel({
           日付
           <Input
             type="date"
+            disabled={readOnly}
             value={data.date}
             onChange={(e) => edit(setFieldUpdater("date", e.target.value))}
           />
@@ -74,13 +78,14 @@ export function MatchInfoPanel({
           <button
             className="combobox-trigger"
             role="combobox"
-            aria-expanded={teamPickerOpen}
+            aria-expanded={!readOnly && teamPickerOpen}
+            disabled={readOnly}
             onClick={onOpenTeamPicker}
           >
             <span className={!data.opponent ? "placeholder" : ""}>
-              {data.opponent || "チームを検索・追加"}
+              {data.opponent || (readOnly ? "未設定" : "チームを検索・追加")}
             </span>
-            <ChevronDown size={16} />
+            {!readOnly && <ChevronDown size={16} />}
           </button>
         </label>
 
@@ -89,6 +94,7 @@ export function MatchInfoPanel({
           <Input
             maxLength={80}
             value={data.teamName}
+            disabled={readOnly}
             onChange={(e) => edit(setFieldUpdater("teamName", e.target.value))}
           />
         </label>
@@ -98,8 +104,9 @@ export function MatchInfoPanel({
           <Input
             maxLength={80}
             value={data.manager}
+            disabled={readOnly}
             onChange={(e) => edit(setFieldUpdater("manager", e.target.value))}
-            placeholder="監督名を入力"
+            placeholder={readOnly ? "未設定" : "監督名を入力"}
           />
         </label>
 

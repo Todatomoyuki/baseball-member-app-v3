@@ -48,6 +48,7 @@ function movementKey(data: TeamData) {
  */
 export function OrderPanel({
   data,
+  readOnly,
   edit,
   bench,
   absent,
@@ -57,6 +58,7 @@ export function OrderPanel({
   onAddPlayer,
 }: {
   data: TeamData;
+  readOnly: boolean;
   edit: (fn: (d: TeamData) => TeamData) => void;
   bench: Player[];
   absent: Player[];
@@ -71,12 +73,12 @@ export function OrderPanel({
   const capacity = lineupCapacity(data);
   const pitcher = data.players.find((p) => p.id === data.pitcher);
   const [pendingMove, setPendingMove] = useState<PendingMove | null>(null);
-  const warningOpen = pendingMove !== null && pendingMove.source === data;
+  const warningOpen = !readOnly && pendingMove !== null && pendingMove.source === data;
 
   function confirmMove() {
     const move = pendingMove;
     setPendingMove(null);
-    if (!move || move.source !== data) return;
+    if (readOnly || !move || move.source !== data) return;
     edit((current) => movementKey(current) === movementKey(move.source)
       ? move.updater(current)
       : current);
@@ -90,6 +92,7 @@ export function OrderPanel({
           className="mode-select"
           aria-label="試合のルール"
           value={data.mode}
+          disabled={readOnly}
           onChange={(e) =>
             edit((d) => changeMode(d, e.target.value as "normal" | "dh" | "all" ,))
           }
@@ -103,6 +106,7 @@ export function OrderPanel({
             className="mode-select lineup-count-select"
             aria-label="オーダー人数"
             value={capacity}
+            disabled={readOnly}
             onChange={(event) =>
               edit((current) =>
                 changeMode(current, "all", Number(event.target.value)),
@@ -119,10 +123,14 @@ export function OrderPanel({
         )}
       </div>
 
-      <p className="drag-help">
-        <GripVertical size={14} />
-        打順・選手・守備はドラッグで入れ替え
-      </p>
+      {readOnly ? (
+        <p className="lineup-readonly-note">閲覧専用</p>
+      ) : (
+        <p className="drag-help">
+          <GripVertical size={14} />
+          打順・選手・守備はドラッグで入れ替え
+        </p>
+      )}
 
       <GotoMoveDialog
         open={warningOpen}
@@ -134,6 +142,7 @@ export function OrderPanel({
       <DndContext
         sensors={sensors}
         onDragEnd={(event) => {
+          if (readOnly) return;
           const updater = dragEndUpdater(event);
           if (!updater) return;
           const next = updater(structuredClone(data));
@@ -176,6 +185,7 @@ export function OrderPanel({
           {data.slots.map((slot, i) => (
             <LineupRow
               key={i}
+              readOnly={readOnly}
               index={i}
               position={slot.position}
               player={data.players.find((p) => p.id === slot.playerId)}
@@ -184,17 +194,18 @@ export function OrderPanel({
             />
           ))}
           {data.mode === "dh" && (
-            <PitcherRow pitcher={pitcher} onPick={() => onPickPlayer("pitcher")} />
+            <PitcherRow readOnly={readOnly} pitcher={pitcher} onPick={() => onPickPlayer("pitcher")} />
           )}
         </div>
 
         <BenchSection
+          readOnly={readOnly}
           bench={bench}
           totalPlayers={data.players.length}
           onEditPlayer={onEditPlayer}
           onAddPlayer={onAddPlayer}
         />
-        <AbsentSection absent={absent} onEditPlayer={onEditPlayer} />
+        <AbsentSection readOnly={readOnly} absent={absent} onEditPlayer={onEditPlayer} />
       </DndContext>
     </section>
   );

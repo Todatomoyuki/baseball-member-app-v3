@@ -121,7 +121,7 @@ export async function getSession(req: Request): Promise<AuthSession | null> {
     if (!validToken(value)) return null;
     const row = await db()
         .prepare(`
-            SELECT s.hash, s.device_hash, p.id, p.name, p.number, p.is_admin
+            SELECT s.hash, s.device_hash, p.id, p.name, p.number, p.is_admin, p.can_edit_lineup
             FROM sessions s
             LEFT JOIN member_devices d ON d.hash=s.device_hash
             LEFT JOIN players p ON p.id=d.player_id AND p.sort_order IS NOT NULL
@@ -136,6 +136,7 @@ export async function getSession(req: Request): Promise<AuthSession | null> {
             name: string | null;
             number: string | null;
             is_admin: number | null;
+            can_edit_lineup: number | null;
         }>();
     if (!row) return null;
     return {
@@ -146,6 +147,7 @@ export async function getSession(req: Request): Promise<AuthSession | null> {
             name: row.name ?? "",
             number: row.number ?? "",
             isAdmin: row.is_admin === 1,
+            canEditLineup: row.can_edit_lineup === 1,
         },
     };
 }

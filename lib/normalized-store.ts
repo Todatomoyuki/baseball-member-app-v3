@@ -20,6 +20,7 @@ type Table = {
 
 // SQL identifiers come only from this allowlist, never from request data.
 // Parent tables precede children; removals run in the reverse order.
+// Role columns stay outside this allowlist so roster edits cannot grant access.
 const tables: Record<DataScope, Table[]> = {
   team: [
     { name: "players", columns: ["id", "name", "number", "kana", "sort_order", "bench_order", "absent_order"], keys: ["id"], order: "sort_order", filter: "sort_order IS NOT NULL", retire: true },
@@ -54,6 +55,12 @@ export class StatsPermissionError extends Error {
   }
 }
 
+export class LineupPermissionError extends Error {
+  constructor() {
+    super("オーダーを変更できるのは安曇・戸田・押野・池原・根岸の5名だけです。");
+  }
+}
+
 /** One SELECT includes authentication, revision and all requested tables.
  * CASE avoids scanning child tables for unchanged polls / stale writes.
  */
@@ -76,7 +83,7 @@ export async function readSnapshot(
     })) : null;
   const sessionHash = await digest(session);
   const result = await db().prepare(`
-    SELECT r.revision, p.id, p.name, p.number, p.is_admin,
+    SELECT r.revision, p.id, p.name, p.number, p.is_admin, p.can_edit_lineup,
       CASE WHEN ${predicate} THEN ${snapshotSql(scope, partition !== null)} END AS data
     FROM sessions AS s
     JOIN member_devices AS d ON d.hash=s.device_hash
@@ -87,13 +94,13 @@ export async function readSnapshot(
     ...(condition ? [condition.revision] : []),
     ...(partition === null ? [] : tables[scope].map(() => partition)),
     scope, sessionHash, Date.now(),
-  ).first<{ revision: number; data: string | null; id: string; name: string; number: string; is_admin: number }>();
+  ).first<{ revision: number; data: string | null; id: string; name: string; number: string; is_admin: number; can_edit_lineup: number }>();
   if (!result) return null;
   return {
     revision: result.revision,
     tables: result.data === null ? null : JSON.parse(result.data) as Tables,
     sessionHash,
-    member: { id: result.id, name: result.name, number: result.number, isAdmin: result.is_admin === 1 },
+    member: { id: result.id, name: result.name, number: result.number, isAdmin: result.is_admin === 1, canEditLineup: result.can_edit_lineup === 1 },
   };
 }
 
@@ -192,6 +199,20 @@ export async function writeChanges(scope: DataScope, snapshot: Snapshot, next: T
       remove: [...oldRows].filter(([id]) => !newRows.has(id)).map(([, row]) => table.keys.map((column) => row[table.columns.indexOf(column)])),
     };
   });
+  if (scope === "team" && !snapshot.member.canEditLineup) {
+    // Roster metadata remains editable. Existing placement and membership are
+    // fixed; newly registered players may only append to the implicit bench.
+    if (changes.slice(1).some((change) => change.upsert.length || change.remove.length) ||
+        changes[0].remove.length) throw new LineupPermissionError();
+    const existing = new Map(previous.players.map((row) => [row[0], row]));
+    if (previous.players.some((row, index) => next.players[index]?.[0] !== row[0]) ||
+        next.players.some((row, index) => {
+          const old = existing.get(row[0]);
+          return old
+            ? row[4] !== old[4] || row[5] !== old[5] || row[6] !== old[6]
+            : index < previous.players.length || row[5] !== null || row[6] !== null;
+        })) throw new LineupPermissionError();
+  }
   if (scope === "stats") {
     if (!snapshot.member.isAdmin) {
       // Check every changed row before pruning cascading deletes. A removed
@@ -234,8 +255,9 @@ export async function writeChanges(scope: DataScope, snapshot: Snapshot, next: T
       JOIN players AS p ON p.id=d.player_id
       WHERE s.hash=? AND (s.expires=0 OR s.expires>?)
         AND p.id=? AND p.sort_order IS NOT NULL AND (p.is_admin=1)=?
+        AND (p.can_edit_lineup=1)=?
     ) RETURNING revision
-  `).bind(writeToken, scope, snapshot.revision, snapshot.sessionHash, Date.now(), snapshot.member.id, snapshot.member.isAdmin ? 1 : 0)];
+  `).bind(writeToken, scope, snapshot.revision, snapshot.sessionHash, Date.now(), snapshot.member.id, snapshot.member.isAdmin ? 1 : 0, snapshot.member.canEditLineup ? 1 : 0)];
 
   for (const { table, upsert } of changes) {
     if (!upsert.length) continue;

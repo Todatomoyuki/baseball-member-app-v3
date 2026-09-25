@@ -1,4 +1,4 @@
--- ローカル開発用。0004_member_devices.sql 適用後に実行してください。
+-- ローカル開発用。0005_lineup_permissions.sql 適用後に実行してください。
 -- チーム・道具・成績を初期化し、YGファイヤーズの選手16名を登録します。
 -- セッション・端末とメンバーの紐づけも初期化します。再ログインが必要です。
 -- 共通パスワードと旧JSONバックアップ（*_state）は変更しません。
@@ -35,6 +35,16 @@ INSERT INTO players (id, name, number, kana, sort_order) VALUES
 -- 安曇 幸寛・戸田 朋幸を管理者に設定します。
 UPDATE players SET is_admin = 1
 WHERE id IN ('00000000-0000-4000-8000-000000000008', '00000000-0000-4000-8000-000000000011');
+
+-- 安曇・戸田・押野・池原・根岸の5名にオーダー編集権限を設定します。
+UPDATE players SET can_edit_lineup = 1
+WHERE id IN (
+  '00000000-0000-4000-8000-000000000008',
+  '00000000-0000-4000-8000-000000000011',
+  '00000000-0000-4000-8000-000000000010',
+  '00000000-0000-4000-8000-000000000005',
+  '00000000-0000-4000-8000-000000000001'
+);
 
 INSERT INTO team_settings (id, team_name, manager, tournament, game_date, opponent, mode, pitcher_id)
 VALUES (1, 'YGファイヤーズ', '池原　海斗', '', date('now', '+9 hours', '+1 day', 'weekday 6'), '', 'normal', NULL);
