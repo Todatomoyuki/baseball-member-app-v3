@@ -2,7 +2,7 @@
 
 開発時のファイル構成・設定値・保存処理は [開発・保守ガイド](docs/development-guide.md) を参照してください。
 
-既存DBを使う場合は [DB正規化の移行手順](docs/database-normalization.md)、[メンバーログイン・オーダー編集権限の適用手順](docs/member-login.md)、[道具のLINE通知設定の適用手順](docs/equipment-line-notifications.md) を確認してください。アプリと週次LINE Workerの公開前に `0006_equipment_line_notifications.sql` までの適用が必要です。未適用の移行を順に一度だけ実行し、`0005` まで適用済みなら `0006` だけを追加適用します。
+既存DBを使う場合は [DB正規化の移行手順](docs/database-normalization.md)、[メンバーログイン・オーダー編集権限の適用手順](docs/member-login.md)、[道具のLINE通知設定の適用手順](docs/equipment-line-notifications.md)、[スケジュール・出欠管理の適用手順](docs/schedule-management.md) を確認してください。現在のアプリと週次スケジュールWorkerの公開前に `0007_schedules.sql` までの適用が必要です。未適用の移行を順に一度だけ実行し、`0006` まで適用済みなら `0007` だけを追加適用します。
 
 ## 🗺️ 今後の画面構成
 
@@ -69,6 +69,7 @@ npx wrangler d1 execute yg_member_db --local --persist-to="./.wrangler/state" --
 npx wrangler d1 execute yg_member_db --local --persist-to="./.wrangler/state" --file="./drizzle/0004_member_devices.sql" --config="./dist/server/wrangler.json"
 npx wrangler d1 execute yg_member_db --local --persist-to="./.wrangler/state" --file="./drizzle/0005_lineup_permissions.sql" --config="./dist/server/wrangler.json"
 npx wrangler d1 execute yg_member_db --local --persist-to="./.wrangler/state" --file="./drizzle/0006_equipment_line_notifications.sql" --config="./dist/server/wrangler.json"
+npx wrangler d1 execute yg_member_db --local --persist-to="./.wrangler/state" --file="./drizzle/0007_schedules.sql" --config="./dist/server/wrangler.json"
 ```
 
 ローカルDBは以下に保存されます。

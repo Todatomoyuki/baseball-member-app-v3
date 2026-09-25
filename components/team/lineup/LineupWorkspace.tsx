@@ -1,14 +1,20 @@
 "use client";
 import type { Player, TeamData } from "@/lib/model";
+import type { ScheduleGame, ScheduleResponse } from "@/lib/schedule";
 import { MatchInfoPanel } from "./MatchInfoPanel";
 import { OrderPanel } from "./OrderPanel";
+import { AttendancePanel } from "./AttendancePanel";
 
 /**
  * 「オーダー」タブのレイアウト。
- * 左に試合情報、右にオーダー編集を並べるだけのコンポーネントです。
+ * 試合情報、オーダー編集、選択した試合の出欠を並べます。
  */
 export function LineupWorkspace({
   data,
+  scheduleOptions,
+  attendance,
+  attendanceScheduleId,
+  onOpenSchedule,
   readOnly,
   edit,
   bench,
@@ -25,6 +31,10 @@ export function LineupWorkspace({
   onAddPlayer,
 }: {
   data: TeamData;
+  scheduleOptions: Array<Omit<ScheduleGame, "responses">>;
+  attendance: Record<string, ScheduleResponse>;
+  attendanceScheduleId: string | null;
+  onOpenSchedule: () => void;
   readOnly: boolean;
   edit: (fn: (d: TeamData) => TeamData) => void;
   bench: Player[];
@@ -41,9 +51,11 @@ export function LineupWorkspace({
   onAddPlayer: () => void;
 }) {
   return (
-    <div className={`workspace ${readOnly ? "lineup-readonly" : ""}`}>
+    <div className={`workspace lineup-workspace ${readOnly ? "lineup-readonly" : ""}`}>
       <MatchInfoPanel
         data={data}
+        scheduleOptions={scheduleOptions}
+        onOpenSchedule={onOpenSchedule}
         readOnly={readOnly}
         edit={edit}
         infoOpen={infoOpen}
@@ -63,6 +75,13 @@ export function LineupWorkspace({
         onPickPosition={onPickPosition}
         onEditPlayer={onEditPlayer}
         onAddPlayer={onAddPlayer}
+      />
+      <AttendancePanel
+        players={data.players}
+        responses={attendance}
+        linked={data.scheduleId !== null}
+        pending={data.scheduleId !== attendanceScheduleId}
+        onOpenSchedule={onOpenSchedule}
       />
     </div>
   );

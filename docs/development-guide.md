@@ -7,9 +7,10 @@
 | `app/page.tsx` / `components/team/TeamApp.tsx` | チーム画面の入口、各画面・モーダルの接続 |
 | `components/team/hooks/useTeamUiState.ts` | タブ、選手選択、モーダルの開閉 |
 | `components/team/hooks/useTeamData.ts` | ログイン、チームの取得・保存、定期取得、再認証 |
-| `components/team/hooks/useAutosavedData.ts` | 道具・成績で共通の読み込み、自動保存、競合状態 |
+| `components/team/hooks/useAutosavedData.ts` | 道具・成績・予定で共通の読み込み、自動保存、競合状態 |
 | `components/team/hooks/useEquipmentData.ts` | 道具APIへの接続 |
 | `components/team/hooks/useStatsData.ts` | 成績APIへの接続、変更した試合・削除した試合だけの送信 |
+| `components/team/hooks/useScheduleData.ts` / `components/team/schedule/` | 予定・出欠の取得と保存 / 予定管理画面 |
 | `components/team/lib/api.ts` | JSON通信、HTTPエラーの変換 |
 | `components/team/lib/lineup-actions.ts` / `lib/model.ts` | オーダー・選手のデータ操作と検証 |
 | `components/team/stats/StatsView.tsx` | 成績の入力・確認画面と操作 |
@@ -17,9 +18,11 @@
 | `components/team/common/Modal.tsx` | 共通モーダル、キーボード表示時の高さ・フォーカス調整 |
 | `app/api/*/route.ts` | API入口 |
 | `lib/data-route.ts` / `lib/normalized-store.ts` | 共通API処理 / 正規化DBの読み取り・差分更新 |
+| `lib/schedule.ts` / `lib/schedule-order.ts` | 予定の検証、日本時間の日付・地図リンク / オーダーへの反映 |
 | `lib/server.ts` / `app/api/auth/route.ts` | Cookie、認証、メンバー紐付け、パスワード処理 |
 | `db/schema.ts` / `drizzle/` | Drizzleのスキーマと既存の移行SQL |
 | `workers/weekly-equipment/` | 独立して動く週次LINE通知Worker |
+| `workers/weekly-schedule/` | 毎週日曜0時（日本時間）に予定・出欠をオーダーへ反映するWorker |
 
 `components/ui/`、`vendor/`、`build/sites-vite-plugin.ts` は提供元の共通部品です。通常の機能改修は各機能のコンポーネントで行います。設定やビルドから参照されるスキーマ、認証補助、スクリプトは、画面から直接呼ばれていなくても削除しません。
 
@@ -31,7 +34,9 @@
 - 成績は試合単位の差分送信です。全件PUTへ置き換えないでください。
 - 認証・データ保存は既存のCookieとD1を使います。チーム・後藤ページ・パチンコで新たなlocalStorage/sessionStorage保存は行っていません。
 - `TabNav.tsx` のモジュール変数は、画面切り替えによる再マウント後にもタブの横スクロール位置を戻すために残しています。
+- スケジュール画面はログイン後に常時マウントし、他のタブでは非表示にします。未回答案内の取得と、タブ移動後の保存完了のためです。予定のrevisionが更新された場合だけ、未保存の入力がない状態で再取得します。
 - 道具のLINE通知設定は `equipment_items.notify_line` に保存します。既存の取得・差分保存の列に含め、設定のためのSQLは追加しません。移行は [道具のLINE通知設定の適用手順](equipment-line-notifications.md) を参照してください。
+- 予定と出欠は `schedule_games` / `schedule_responses` に保存します。予定からオーダーへの反映は `projectScheduleOrder` にまとめ、予定・チームの両revisionを照合して同じbatchで保存します。週次Workerの入口は `syncScheduledOrder`、チーム情報取得時と共通の更新処理は `synchronizeTeamSnapshot` です。移行と動作は [スケジュール・出欠管理](schedule-management.md) を参照してください。
 
 ## パチンコ
 

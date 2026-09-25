@@ -24,11 +24,13 @@ export function useAutosavedData<T extends object>(source: AutosavedDataSource<T
   const saved = useRef("");
   const saving = useRef(false);
   const currentDraft = useRef("");
+  const syncVersion = useRef(0);
   useLayoutEffect(() => {
     currentDraft.current = JSON.stringify(data);
   }, [data]);
 
   const load = useCallback(async () => {
+    syncVersion.current += 1;
     setLoading(true);
     setError("");
     try {
@@ -44,10 +46,28 @@ export function useAutosavedData<T extends object>(source: AutosavedDataSource<T
     }
   }, [source]);
 
+  /** 自動取得中に始まった編集を上書きせず、表示を維持したまま更新する。 */
+  const refreshIfIdle = useCallback(async () => {
+    if (saving.current || currentDraft.current !== saved.current) return;
+    const version = syncVersion.current;
+    try {
+      const result = await source.load();
+      if (version !== syncVersion.current || saving.current || currentDraft.current !== saved.current) return;
+      syncVersion.current += 1;
+      saved.current = JSON.stringify(result.data);
+      currentDraft.current = saved.current;
+      setData(result.data);
+      setRevision(result.revision);
+    } catch {
+      // 通信失敗時は現在の表示と編集内容を保持する。
+    }
+  }, [source]);
+
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void load(); }, [load]);
 
   const edit = useCallback((updater: T | ((current: T) => T)) => {
+    syncVersion.current += 1;
     setData((current) =>
       typeof updater === "function" ? updater(structuredClone(current)) : updater,
     );
@@ -60,6 +80,7 @@ export function useAutosavedData<T extends object>(source: AutosavedDataSource<T
 
     const timer = window.setTimeout(async () => {
       const payload = JSON.stringify(data);
+      syncVersion.current += 1;
       saving.current = true;
       setSaveState("saving");
       try {
@@ -87,5 +108,5 @@ export function useAutosavedData<T extends object>(source: AutosavedDataSource<T
     }
   }, [data, revision, saveState]);
 
-  return { data, revision, loading, error, setError, saveState, edit, load };
+  return { data, revision, loading, error, setError, saveState, edit, load, refreshIfIdle };
 }

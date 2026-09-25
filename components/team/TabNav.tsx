@@ -1,6 +1,6 @@
 "use client";
 import { useLayoutEffect, useRef } from "react";
-import { BarChart3, BriefcaseBusiness, GripVertical, Users } from "lucide-react";
+import { BarChart3, BriefcaseBusiness, CalendarDays, GripVertical, Users } from "lucide-react";
 import type { AppView, SaveState, TeamTab } from "./types";
 import { SaveStateLabel } from "./common/SaveStateLabel";
 
@@ -27,7 +27,7 @@ export function TabNav({
 
   useLayoutEffect(() => {
     if (tabsRef.current) tabsRef.current.scrollLeft = savedScrollLeft;
-  }, []);
+  }, [appView, tab]);
 
   return (
     <div className="app-tabs-shell">
@@ -45,6 +45,13 @@ export function TabNav({
         >
           <BarChart3 size={16} />
           成績入力
+        </button>
+        <button
+          className={appView === "schedule" ? "active" : ""}
+          onClick={() => onViewChange("schedule")}
+        >
+          <CalendarDays size={16} />
+          スケジュール管理
         </button>
         <button
           className={appView === "equipment" ? "active" : ""}

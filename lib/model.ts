@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { SCHEDULE_LIMITS, upcomingSaturday } from "./schedule";
 export const POSITIONS = [
     "投",
     "捕",
@@ -21,6 +22,10 @@ export type TeamData = {
     tournament: string;
     tournaments: string[];
     date: string;
+    scheduleId: string | null;
+    startTime: string;
+    location: string;
+    mapUrl: string;
     opponent: string;
     opponents: string[];
     mode: LineupMode;
@@ -44,9 +49,7 @@ export function canExportLineupPdf(data: TeamData): boolean {
     return lineupCapacity(data) <= MAX_PDF_LINEUP_PLAYERS;
 }
 export function nextSaturday(now = new Date()) {
-    const date = new Date(now);
-    date.setDate(date.getDate() + ((6 - date.getDay() + 7) % 7 || 7));
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    return upcomingSaturday(now);
 }
 export function initialData(): TeamData {
     return {
@@ -55,6 +58,10 @@ export function initialData(): TeamData {
         tournament: "",
         tournaments: [],
         date: nextSaturday(),
+        scheduleId: null,
+        startTime: "",
+        location: "",
+        mapUrl: "",
         opponent: "",
         opponents: [],
         mode: "normal",
@@ -280,6 +287,16 @@ export function swapPlayer(data: TeamData, from: string, to: string): TeamData {
     return d;
 }
 const short = z.string().trim().max(80);
+const mapUrl = z.string().trim().max(SCHEDULE_LIMITS.mapUrl).refine((value) => {
+    if (!value) return true;
+    try {
+        const url = new URL(value);
+        return /^https?:\/\//i.test(value) && ["http:", "https:"].includes(url.protocol)
+            && Boolean(url.hostname) && !url.username && !url.password;
+    } catch {
+        return false;
+    }
+}, "地図URLは http:// または https:// で始まるURLを入力してください。");
 const schema = z.object({
     teamName: short.min(1),
     manager: short,
@@ -293,6 +310,11 @@ const schema = z.object({
                 !isNaN(Date.parse(v)) &&
                 new Date(v).toISOString().slice(0, 10) === v,
         ),
+    // Required on writes so stale clients cannot clear a schedule association.
+    scheduleId: z.string().trim().min(1).max(SCHEDULE_LIMITS.id).nullable(),
+    startTime: z.string().trim().regex(/^(?:|(?:[01]\d|2[0-3]):[0-5]\d)$/),
+    location: z.string().trim().max(SCHEDULE_LIMITS.location),
+    mapUrl,
     opponent: short,
     opponents: z.array(short.min(1)).max(200),
     mode: z.enum(["normal", "dh", "all"]),

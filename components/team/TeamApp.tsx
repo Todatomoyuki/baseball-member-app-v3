@@ -14,6 +14,7 @@ import { usePdfExport } from "./hooks/usePdfExport";
 import { useLineupTool } from "./hooks/useLineupTool";
 import { EquipmentView } from "./equipment/EquipmentView";
 import { StatsView } from "./stats/StatsView";
+import { ScheduleView } from "./schedule/ScheduleView";
 
 import {
   pickOpponentUpdater,
@@ -64,6 +65,7 @@ export function TeamApp() {
   const pdf = usePdfExport(team.data, team.setError);
   const [equipmentSaveState, setEquipmentSaveState] = useState<SaveState>("saved");
   const [statsSaveState, setStatsSaveState] = useState<SaveState>("saved");
+  const [scheduleSaveState, setScheduleSaveState] = useState<SaveState>("saved");
 
   useLineupTool(team.data, team.auth);
 
@@ -130,7 +132,7 @@ export function TeamApp() {
 
   const requestLogout = useCallback(async () => {
     if (
-      team.saveState !== "saved" &&
+      (team.saveState !== "saved" || scheduleSaveState !== "saved") &&
       !window.confirm("未保存の変更があります。ログアウトしますか？")
     )
       return;
@@ -138,7 +140,7 @@ export function TeamApp() {
     ui.setSettings(false);
     pdf.clear();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [team.saveState, team.logout, ui.setSettings, pdf.clear]);
+  }, [team.saveState, scheduleSaveState, team.logout, ui.setSettings, pdf.clear]);
 
   /* ---------------- 未ログイン ---------------- */
 
@@ -168,11 +170,13 @@ export function TeamApp() {
       onViewChange={ui.setAppView}
       playerCount={data.players.length}
       saveState={
-        ui.appView === "equipment"
-          ? equipmentSaveState
-          : ui.appView === "stats"
-            ? statsSaveState
-            : team.saveState
+        ui.appView === "schedule"
+          ? scheduleSaveState
+          : ui.appView === "equipment"
+            ? equipmentSaveState
+            : ui.appView === "stats"
+              ? statsSaveState
+              : team.saveState
       }
     />
   );
@@ -186,6 +190,21 @@ export function TeamApp() {
         onBrandClick={() => ui.setAppMenuOpen(true)}
         onSettingsClick={() => ui.setSettings(true)}
       />
+
+      {/* タブ移動後も出欠の保存を完了し、ログイン時の未回答案内を表示する。 */}
+      <div hidden={ui.appView !== "schedule"}>
+        <ScheduleView
+          key={team.member.id}
+          players={data.players}
+          member={team.member}
+          appNavigation={appNavigation}
+          isVisible={ui.appView === "schedule"}
+          onOpenSchedule={() => ui.setAppView("schedule")}
+          onSaveStateChange={setScheduleSaveState}
+          onSaved={team.refreshIfIdle}
+          remoteRevision={team.scheduleRevision}
+        />
+      </div>
 
       {ui.appView === "equipment" ? (
         <EquipmentView
@@ -202,7 +221,7 @@ export function TeamApp() {
           appNavigation={appNavigation}
           onSaveStateChange={setStatsSaveState}
         />
-      ) : (
+      ) : ui.appView === "lineup" ? (
         <>
           <PageHeading
             teamName={data.teamName}
@@ -234,6 +253,10 @@ export function TeamApp() {
           {ui.tab === "order" ? (
             <LineupWorkspace
               data={data}
+              scheduleOptions={team.schedules}
+              attendance={team.attendance}
+              attendanceScheduleId={team.attendanceScheduleId}
+              onOpenSchedule={() => ui.setAppView("schedule")}
               edit={editLineup}
               readOnly={!canEditLineup}
               bench={bench}
@@ -273,7 +296,7 @@ export function TeamApp() {
             onCreatePdf={() => void pdf.create()}
           />
         </>
-      )}
+      ) : null}
 
       {/* ------------------------- モーダル群 ------------------------- */}
 

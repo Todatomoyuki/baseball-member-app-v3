@@ -4,7 +4,7 @@
  */
 
 /** アプリランチャーで切り替える画面種別 */
-export type AppView = "lineup" | "equipment" | "stats";
+export type AppView = "lineup" | "equipment" | "stats" | "schedule";
 
 /** 画面内のタブ */
 export type TeamTab = "order" | "players";

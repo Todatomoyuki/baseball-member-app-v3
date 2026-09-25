@@ -19,6 +19,10 @@ export function useTeamData() {
   const [auth, setAuth] = useState<AuthState>("loading");
   const [data, setData] = useState<TeamData>(initialData);
   const [revision, setRevision] = useState(0);
+  const [scheduleRevision, setScheduleRevision] = useState(0);
+  const [schedules, setSchedules] = useState<TeamLoadResponse["schedules"]>([]);
+  const [attendance, setAttendance] = useState<TeamLoadResponse["attendance"]>({});
+  const [attendanceScheduleId, setAttendanceScheduleId] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>("saved");
   const [error, setError] = useState("");
   const [reauth, setReauth] = useState(false);
@@ -45,17 +49,40 @@ export function useTeamData() {
 
   /* ---------------- ロード ---------------- */
 
+  const acceptData = useCallback((result: TeamLoadResponse) => {
+    syncVersion.current += 1;
+    saved.current = JSON.stringify(result.data);
+    currentDraft.current = saved.current;
+    setData(result.data);
+    setRevision(result.revision);
+    setScheduleRevision(result.scheduleRevision);
+    setSchedules(result.schedules);
+    setAttendance(result.attendance);
+    setAttendanceScheduleId(result.attendanceScheduleId);
+  }, []);
+
   const load = useCallback(async () => {
     syncVersion.current += 1;
     const result = await api<TeamLoadResponse>("/api/team");
-    saved.current = JSON.stringify(result.data);
-    setData(result.data);
-    setRevision(result.revision);
+    acceptData(result);
     setMember(result.member);
     setSaveState("saved");
     setError("");
     setAuth("ready");
-  }, []);
+  }, [acceptData]);
+
+  /** 出欠の保存で変わったオーダーを、手元に未保存の編集がないときだけ反映する。 */
+  const refreshIfIdle = useCallback(async () => {
+    if (saving.current || currentDraft.current !== saved.current) return;
+    const version = syncVersion.current;
+    try {
+      const result = await api<TeamLoadResponse>("/api/team");
+      if (version !== syncVersion.current || saving.current || currentDraft.current !== saved.current || result.member.id !== member?.id) return;
+      acceptData(result);
+    } catch {
+      // 一時的な通信失敗は通常の定期取得で再試行する。
+    }
+  }, [acceptData, member]);
 
   const acceptAuth = useCallback(async (result: AuthResponse) => {
     if (result.needsMemberSelection) {
@@ -118,10 +145,15 @@ export function useTeamData() {
       saving.current = true;
       setSaveState("saving");
       try {
-        const result = await api("/api/team", "PUT", { data, revision });
-        saved.current = payload;
+        const result = await api<TeamLoadResponse>("/api/team", "PUT", { data, revision });
+        saved.current = JSON.stringify(result.data);
         setRevision(result.revision);
-        setSaveState(currentDraft.current === payload ? "saved" : "dirty");
+        if (currentDraft.current === payload) {
+          acceptData(result);
+          setSaveState("saved");
+        } else {
+          setSaveState("dirty");
+        }
         setError("");
       } catch (e) {
         const err = e as ApiError;
@@ -133,7 +165,7 @@ export function useTeamData() {
       }
     }, AUTOSAVE_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [data, revision, auth, saveState]);
+  }, [data, revision, auth, saveState, acceptData]);
 
   /** 保存済みの内容と一致したら "保存済み" 表示に戻す */
   useEffect(() => {
@@ -161,7 +193,7 @@ export function useTeamData() {
         return;
       const requestVersion = syncVersion.current;
       polling = true;
-      void api<TeamPollResponse>(`/api/team?revision=${revision}`)
+      void api<TeamPollResponse>(`/api/team?revision=${revision}&scheduleRevision=${scheduleRevision}`)
         .then((r) => {
           if (!active) return;
           if (member?.id !== r.member.id) {
@@ -190,13 +222,10 @@ export function useTeamData() {
             !r.unchanged &&
             !saving.current &&
             requestVersion === syncVersion.current &&
-            r.revision !== revision &&
             currentDraft.current === saved.current &&
             document.visibilityState === "visible"
           ) {
-            saved.current = JSON.stringify(r.data);
-            setData(r.data);
-            setRevision(r.revision);
+            acceptData(r);
           }
         })
         .catch(() => {})
@@ -206,7 +235,7 @@ export function useTeamData() {
       active = false;
       clearInterval(id);
     };
-  }, [auth, data, revision, member?.id, load]);
+  }, [auth, data, revision, scheduleRevision, member?.id, load, acceptData]);
 
   /* ---------------- 離脱警告 ---------------- */
 
@@ -277,6 +306,10 @@ export function useTeamData() {
     saved.current = "";
     setData(initialData());
     setRevision(0);
+    setScheduleRevision(0);
+    setSchedules([]);
+    setAttendance({});
+    setAttendanceScheduleId(null);
     setSaveState("saved");
     setMember(null);
     setLoginMembers([]);
@@ -316,6 +349,11 @@ export function useTeamData() {
     edit,
     revision,
     load,
+    refreshIfIdle,
+    scheduleRevision,
+    schedules,
+    attendance,
+    attendanceScheduleId,
     // 保存状態
     saveState,
     setSaveState,

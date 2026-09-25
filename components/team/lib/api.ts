@@ -1,5 +1,6 @@
 import type { TeamData } from "@/lib/model";
 import type { AuthMember } from "@/lib/auth-types";
+import type { ScheduleGame, ScheduleResponse } from "@/lib/schedule";
 
 /** サーバーから返ってくる共通レスポンス */
 export type ApiResponse = {
@@ -13,6 +14,10 @@ export type TeamLoadResponse = {
   data: TeamData;
   revision: number;
   member: AuthMember;
+  scheduleRevision: number;
+  schedules: Array<Omit<ScheduleGame, "responses">>;
+  attendance: Record<string, ScheduleResponse>;
+  attendanceScheduleId: string | null;
 };
 
 /** revision を指定したチーム取得だけが返す、変更有無のレスポンス。 */

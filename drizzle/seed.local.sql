@@ -1,10 +1,12 @@
--- ローカル開発用。0006_equipment_line_notifications.sql 適用後に実行してください。
--- チーム・道具・成績を初期化し、YGファイヤーズの選手16名を登録します。
+-- ローカル開発用。0007_schedules.sql 適用後に実行してください。
+-- チーム・予定・出欠・道具・成績を初期化し、YGファイヤーズの選手16名を登録します。
 -- セッション・端末とメンバーの紐づけも初期化します。再ログインが必要です。
 -- 共通パスワードと旧JSONバックアップ（*_state）は変更しません。
 
 DELETE FROM sessions;
 DELETE FROM member_devices;
+DELETE FROM schedule_responses;
+DELETE FROM schedule_games;
 DELETE FROM plate_appearances;
 DELETE FROM player_game_stats;
 DELETE FROM stats_games;
@@ -47,7 +49,7 @@ WHERE id IN (
 );
 
 INSERT INTO team_settings (id, team_name, manager, tournament, game_date, opponent, mode, pitcher_id)
-VALUES (1, 'YGファイヤーズ', '池原　海斗', '', date('now', '+9 hours', '+1 day', 'weekday 6'), '', 'normal', NULL);
+VALUES (1, 'YGファイヤーズ', '池原　海斗', '', date('now', '+9 hours', 'weekday 6'), '', 'normal', NULL);
 
 INSERT INTO lineup_slots (batting_order, position, player_id) VALUES
   (0, '投', NULL),
@@ -73,5 +75,5 @@ INSERT INTO equipment_items (id, name, holder_id, note, sort_order, notify_line)
 
 -- Revision は単調増加させ、初期化前の画面からの保存と衝突させます。
 INSERT INTO app_revisions (scope, revision, write_token)
-VALUES ('team', 1, ''), ('equipment', 1, ''), ('stats', 1, '')
+VALUES ('team', 1, ''), ('equipment', 1, ''), ('stats', 1, ''), ('schedule', 1, '')
 ON CONFLICT (scope) DO UPDATE SET revision = app_revisions.revision + 1, write_token = excluded.write_token;

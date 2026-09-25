@@ -46,6 +46,11 @@ export const teamSettings = sqliteTable("team_settings", {
     tournament: text("tournament").notNull(),
     gameDate: text("game_date").notNull(),
     opponent: text("opponent").notNull(),
+    scheduleId: text("schedule_id").references(() => scheduleGames.id, { onDelete: "set null" }),
+    startTime: text("start_time").notNull().default(""),
+    location: text("location").notNull().default(""),
+    mapUrl: text("map_url").notNull().default(""),
+    scheduleWeek: text("schedule_week").notNull().default(""),
     mode: text("mode").notNull(),
     pitcherId: text("pitcher_id").references(() => players.id),
 });
@@ -70,6 +75,26 @@ export const equipmentItems = sqliteTable("equipment_items", {
     sortOrder: integer("sort_order").notNull(),
     notifyLine: integer("notify_line").notNull().default(1),
 }, (table) => [check("equipment_items_notify_line_check", sql`${table.notifyLine} IN (0, 1)`)]);
+
+export const scheduleGames = sqliteTable("schedule_games", {
+    id: text("id").primaryKey(),
+    date: text("date").notNull(),
+    startTime: text("start_time").notNull().default(""),
+    title: text("title").notNull().default(""),
+    opponent: text("opponent").notNull().default(""),
+    location: text("location").notNull().default(""),
+    mapUrl: text("map_url").notNull().default(""),
+}, (table) => [index("schedule_games_date_start_time_idx").on(table.date, table.startTime)]);
+
+export const scheduleResponses = sqliteTable("schedule_responses", {
+    scheduleId: text("schedule_id").notNull().references(() => scheduleGames.id, { onDelete: "cascade" }),
+    playerId: text("player_id").notNull().references(() => players.id),
+    status: text("status").notNull(),
+    comment: text("comment").notNull().default(""),
+}, (table) => [
+    primaryKey({ columns: [table.scheduleId, table.playerId] }),
+    check("schedule_responses_status_check", sql`${table.status} IN ('attending', 'absent', 'undecided')`),
+]);
 
 export const statsGames = sqliteTable("stats_games", {
     gameDate: text("game_date").notNull(),
