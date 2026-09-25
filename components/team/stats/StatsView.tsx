@@ -392,7 +392,7 @@ export function StatsView({
               />
             </div>
             <div className="stats-game-number-field">
-              <label htmlFor="stats-game-number">試合番号</label>
+              <label htmlFor="stats-game-number">試合</label>
               <div className="stats-game-number-control">
                 <select
                   className="stats-game-number-input"

@@ -3,6 +3,7 @@ export type EquipmentItem = {
     name: string;
     holderId: string | null;
     note: string;
+    notifyLine: boolean;
 };
 
 export type EquipmentData = {
@@ -50,11 +51,17 @@ export function validateEquipmentData(value: unknown): EquipmentData {
             throw new Error("Invalid holderId");
         }
 
+        // Reject stale clients instead of resetting an existing notification flag.
+        if (typeof v.notifyLine !== "boolean") {
+            throw new Error("Invalid notifyLine");
+        }
+
         return {
             id: v.id.trim(),
             name: v.name.trim(),
             holderId: v.holderId?.trim() || null,
             note: typeof v.note === "string" ? v.note.trim() : "",
+            notifyLine: v.notifyLine,
         };
     });
 

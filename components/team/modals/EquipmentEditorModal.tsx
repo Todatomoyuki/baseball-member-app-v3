@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Trash2 } from "lucide-react";
 
 import {
@@ -30,34 +30,42 @@ export function EquipmentEditorModal({
   onSave,
   onDelete,
 }: Props) {
-  const item =
-    target && target !== "new"
-      ? target
-      : undefined;
+  return (
+    <Dialog open={target !== null} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent layout="app">
+        <div className="team-dialog-header">
+          <DialogTitle className="modal-title">
+            {target === "new" ? "道具を登録" : "道具を編集"}
+          </DialogTitle>
+          <DialogDescription className="modal-description">
+            チーム道具の情報・担当者・LINE通知を設定します。
+          </DialogDescription>
+        </div>
+        <div className="team-dialog-body">
+          {target !== null && (
+            <EquipmentEditorForm
+              key={target === "new" ? "new" : target.id}
+              target={target}
+              players={players}
+              onClose={onClose}
+              onSave={onSave}
+              onDelete={onDelete}
+            />
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
-  const [name, setName] = useState("");
-  const [holderId, setHolderId] =
-    useState<string>("");
-  const [note, setNote] = useState("");
-
-  /*
-   * 編集対象が変わったときに
-   * フォーム内容を入れ直す
-   */
-  useEffect(() => {
-    if (!target) return;
-
-    if (target === "new") {
-      setName("");
-      setHolderId("");
-      setNote("");
-      return;
-    }
-
-    setName(target.name);
-    setHolderId(target.holderId ?? "");
-    setNote(target.note);
-  }, [target]);
+function EquipmentEditorForm({ target, players, onClose, onSave, onDelete }: Omit<Props, "target"> & {
+  target: EquipmentItem | "new";
+}) {
+  const item = target === "new" ? undefined : target;
+  const [name, setName] = useState(item?.name ?? "");
+  const [holderId, setHolderId] = useState(item?.holderId ?? "");
+  const [note, setNote] = useState(item?.note ?? "");
+  const [notifyLine, setNotifyLine] = useState(item?.notifyLine ?? true);
 
   function submit(
     event: React.FormEvent,
@@ -77,32 +85,13 @@ export function EquipmentEditorModal({
         holderId || null,
 
       note: note.trim(),
+      notifyLine,
     });
 
     onClose();
   }
 
   return (
-    <Dialog
-      open={target !== null}
-      onOpenChange={(open) => {
-        if (!open) onClose();
-      }}
-    >
-      <DialogContent layout="app">
-        <div className="team-dialog-header">
-          <DialogTitle className="modal-title">
-            {target === "new"
-              ? "道具を登録"
-              : "道具を編集"}
-          </DialogTitle>
-
-          <DialogDescription className="modal-description">
-            チーム道具の情報と担当者を設定します。
-          </DialogDescription>
-        </div>
-
-        <div className="team-dialog-body">
           <form onSubmit={submit}>
             {/* 道具名 */}
 
@@ -152,6 +141,21 @@ export function EquipmentEditorModal({
                     </option>
                   ),
                 )}
+              </select>
+            </label>
+
+            <label>
+              LINE通知
+
+              <select
+                className="equipment-holder-select"
+                value={notifyLine ? "notify" : "silent"}
+                onChange={(event) =>
+                  setNotifyLine(event.target.value === "notify")
+                }
+              >
+                <option value="notify">LINEに通知する</option>
+                <option value="silent">通知しない</option>
               </select>
             </label>
 
@@ -209,8 +213,5 @@ export function EquipmentEditorModal({
               </button>
             </div>
           </form>
-        </div>
-      </DialogContent>
-    </Dialog>
   );
 }

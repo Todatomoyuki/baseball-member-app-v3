@@ -29,7 +29,7 @@ const tables: Record<DataScope, Table[]> = {
     { name: "lineup_slots", columns: ["batting_order", "position", "player_id"], keys: ["batting_order"], order: "batting_order" },
   ],
   equipment: [
-    { name: "equipment_items", columns: ["id", "name", "holder_id", "note", "sort_order"], keys: ["id"], order: "sort_order" },
+    { name: "equipment_items", columns: ["id", "name", "holder_id", "note", "sort_order", "notify_line"], keys: ["id"], order: "sort_order" },
   ],
   stats: [
     { name: "stats_games", columns: ["game_date", "game_number"], keys: ["game_date", "game_number"], order: "game_date, game_number" },
@@ -128,7 +128,7 @@ export function decodeData(scope: DataScope, rows: Tables): ScopeData[DataScope]
   }
   if (scope === "equipment") {
     return {
-      items: rows.equipment_items.map((row) => ({ id: row[0] as string, name: row[1] as string, holderId: row[2] as string | null, note: row[3] as string })),
+      items: rows.equipment_items.map((row) => ({ id: row[0] as string, name: row[1] as string, holderId: row[2] as string | null, note: row[3] as string, notifyLine: row[5] === 1 })),
     } satisfies EquipmentData;
   }
   const data: StatsData = { games: {} };
@@ -182,7 +182,7 @@ function encodeStats(data: StatsData): Tables {
 export function encodeData(scope: DataScope, data: ScopeData[DataScope]): Tables {
   if (scope === "team") return encodeTeam(data as TeamData);
   if (scope === "stats") return encodeStats(data as StatsData);
-  return { equipment_items: (data as EquipmentData).items.map((item, index) => [item.id, item.name, item.holderId, item.note, index]) };
+  return { equipment_items: (data as EquipmentData).items.map((item, index) => [item.id, item.name, item.holderId, item.note, index, item.notifyLine ? 1 : 0]) };
 }
 
 /** Diff on the server against its authenticated snapshot, never a client-claimed baseline. */

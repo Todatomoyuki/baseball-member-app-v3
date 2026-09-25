@@ -4,7 +4,7 @@
 
 ## DBへの適用
 
-新しいコードを公開する前に、`drizzle/0005_lineup_permissions.sql` までの適用が必要です。`0003_normalize_data.sql` が適用済みなら `0004_member_devices.sql`、`0005_lineup_permissions.sql` の順に、`0004` まで適用済みなら `0005` だけを一度適用します。ローカルと本番は別々に適用が必要です。適用済みの移行や、既存データを初期化する `seed.local.sql` は実行しないでください。
+メンバーログインとオーダー編集権限には、`drizzle/0005_lineup_permissions.sql` までの適用が必要です。`0003_normalize_data.sql` が適用済みなら `0004_member_devices.sql`、`0005_lineup_permissions.sql` の順に、`0004` まで適用済みなら `0005` だけを一度適用します。現在のアプリと週次Workerの公開前には、続けて [道具のLINE通知設定用の `0006`](equipment-line-notifications.md) も適用してください。ローカルと本番は別々に適用が必要です。適用済みの移行や、既存データを初期化する `seed.local.sql` は実行しないでください。
 
 ローカルでは、既存の `dist/server/wrangler.json` を使います。
 

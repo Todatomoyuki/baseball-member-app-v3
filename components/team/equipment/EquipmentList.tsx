@@ -83,7 +83,7 @@ export function EquipmentList({
 
           <p>
             チーム道具を登録・編集して、
-            担当者を管理します。
+            担当者とLINE通知を管理します。
           </p>
         </div>
 
@@ -189,6 +189,12 @@ export function EquipmentList({
                   <small>
                     {item.note ||
                       "備考なし"}
+                  </small>
+
+                  <small>
+                    {item.notifyLine
+                      ? "LINEに通知する"
+                      : "通知しない"}
                   </small>
                 </span>
 

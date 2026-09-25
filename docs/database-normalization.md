@@ -1,6 +1,6 @@
 # DB正規化と移行
 
-現在のコードには、正規化後に [メンバーログイン用の `0004` とオーダー編集権限用の `0005` 移行](member-login.md) も必要です。以下の `0003` までの移行を済ませてから、未適用のものを順に一度だけ追加適用してください。
+現在のコードには、正規化後に [メンバーログイン用の `0004` とオーダー編集権限用の `0005` 移行](member-login.md)、[道具のLINE通知設定用の `0006` 移行](equipment-line-notifications.md) も必要です。以下の `0003` までの移行を済ませてから、アプリと週次Workerの公開前に未適用のものを順に一度だけ追加適用してください。
 
 コードと移行SQLを用意した状態です。テスト、ビルド、DB接続、移行SQLの実行は行っていません。
 
@@ -13,7 +13,7 @@
 | `team_settings` | チーム名、監督、編集中の試合情報、DH投手 |
 | `name_options` | 大会名・対戦相手名の候補と表示順 |
 | `lineup_slots` | 打順、守備位置、選手参照 |
-| `equipment_items` | 道具、担当選手、メモ、表示順 |
+| `equipment_items` | 道具、担当選手、メモ、表示順、LINE通知フラグ |
 | `stats_games` | 試合日と試合番号 |
 | `player_game_stats` | 試合・選手ごとの打点等の成績 |
 | `plate_appearances` | 試合・選手・打席ごとの結果と得点圏フラグ |
@@ -55,7 +55,7 @@ npx wrangler d1 execute yg_member_db --local --persist-to="./.wrangler/state" --
 npx wrangler d1 execute yg_member_db --local --persist-to="./.wrangler/state" --file="./drizzle/0003_normalize_data.sql" --config="./dist/server/wrangler.json"
 ```
 
-4. [メンバーログインの適用手順](member-login.md) に従って `0004`・`0005` を追加適用してから、新しいコードでアプリを起動し、下記を確認します。**既存データを移行する場合は `seed.local.sql` を実行しません。** seedは成績を含めて初期化する開発用です。
+4. [メンバーログインの適用手順](member-login.md) に従って `0004`・`0005`、[道具のLINE通知設定の適用手順](equipment-line-notifications.md) に従って `0006` を追加適用してから、新しいアプリと週次Workerを公開し、下記を確認します。**既存データを移行する場合は `seed.local.sql` を実行しません。** seedは成績を含めて初期化する開発用です。
 
 本番はバックアップを確保し、書き込みを止めた状態で同じ順序で移行と新APIへの切り替えを行います。旧JSONバックアップは移行後の変更を含まないため、旧コードへ戻すだけでは最新データを復元できません。移行に失敗した場合は、途中まで作られたテーブルにSQLを再適用せず、バックアップから戻して原因を修正します。
 

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { sqliteTable, text, integer, primaryKey, foreignKey, index } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, primaryKey, foreignKey, index, check } from "drizzle-orm/sqlite-core";
 
 // Legacy JSON backups retained by 0003_normalize_data; application reads/writes
 // use the normalized tables below. Do not drop these until backups are archived.
@@ -68,7 +68,8 @@ export const equipmentItems = sqliteTable("equipment_items", {
     holderId: text("holder_id").references(() => players.id),
     note: text("note").notNull(),
     sortOrder: integer("sort_order").notNull(),
-});
+    notifyLine: integer("notify_line").notNull().default(1),
+}, (table) => [check("equipment_items_notify_line_check", sql`${table.notifyLine} IN (0, 1)`)]);
 
 export const statsGames = sqliteTable("stats_games", {
     gameDate: text("game_date").notNull(),

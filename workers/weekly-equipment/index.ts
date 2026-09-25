@@ -21,9 +21,11 @@ export default {
             FROM equipment_items AS e
             LEFT JOIN players AS p
                 ON p.id = e.holder_id AND p.sort_order IS NOT NULL
-            WHERE e.holder_id IS NOT NULL
+            WHERE e.notify_line = 1 AND e.holder_id IS NOT NULL
             ORDER BY e.sort_order, e.id
         `).all<EquipmentAssignment>();
+
+        if (assignments.length === 0) return;
 
         const lines = assignments.map(
             ({ player_name, equipment_name }) =>
