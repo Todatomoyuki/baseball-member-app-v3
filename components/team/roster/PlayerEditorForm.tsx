@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import type { Player } from "@/lib/model";
+import { createEntityId } from "@/lib/entity-id";
 import type { PlayerLocation } from "../types";
 
 /**
@@ -37,7 +38,7 @@ export function PlayerEditorForm({
       onSubmit={(e) => {
         e.preventDefault();
         onSave({
-          id: player?.id ?? crypto.randomUUID(),
+          id: player?.id ?? createEntityId(),
           name: name.trim(),
           number: number.trim(),
           kana: kana.trim(),

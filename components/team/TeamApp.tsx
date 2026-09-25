@@ -46,6 +46,7 @@ import { PdfWarningModal } from "./modals/PdfWarningModal";
 import { PdfReadyModal } from "./modals/PdfReadyModal";
 import { AppMenuModal } from "./modals/AppMenuModal";
 import type { SaveState } from "./types";
+import { scheduleNameOptions } from "./lib/schedule-options";
 
 /**
  * メンバー表アプリのルートコンポーネント。
@@ -183,6 +184,12 @@ export function TeamApp() {
 
   /* ---------------- 本画面 ---------------- */
 
+  const nameOptions = scheduleNameOptions(team.schedules, {
+    title: [...data.tournaments, data.tournament],
+    opponent: [...data.opponents, data.opponent],
+    location: [data.location],
+  });
+
   return (
     <main className="app-shell">
       <TopBar
@@ -197,6 +204,7 @@ export function TeamApp() {
           key={team.member.id}
           players={data.players}
           member={team.member}
+          nameOptions={nameOptions}
           appNavigation={appNavigation}
           isVisible={ui.appView === "schedule"}
           onOpenSchedule={() => ui.setAppView("schedule")}
@@ -347,9 +355,9 @@ export function TeamApp() {
         placeholder="チーム名を検索・入力"
         searchLabel="チーム名を検索"
         emptyMessage="チーム名を入力すると追加できます。"
-        options={data.opponents}
-        onSelect={(name, isNew) => {
-          editLineup(pickOpponentUpdater(name, isNew));
+        options={nameOptions.opponent}
+        onSelect={(name) => {
+          editLineup(pickOpponentUpdater(name, !data.opponents.includes(name)));
           ui.setTeamPicker(false);
         }}
       />
@@ -362,9 +370,9 @@ export function TeamApp() {
         placeholder="大会名を検索・入力"
         searchLabel="大会名を検索"
         emptyMessage="大会名を入力すると追加できます。"
-        options={data.tournaments}
-        onSelect={(name, isNew) => {
-          editLineup(pickTournamentUpdater(name, isNew));
+        options={nameOptions.title}
+        onSelect={(name) => {
+          editLineup(pickTournamentUpdater(name, !data.tournaments.includes(name)));
           ui.setTournamentPicker(false);
         }}
       />

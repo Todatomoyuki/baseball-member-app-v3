@@ -1,0 +1,64 @@
+/* 出欠と背番号はひとまとまりにし、狭い画面でも回答を省略しない。 */
+.order-panel span.lineup-player-meta {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+  margin-left: auto;
+  overflow: visible;
+}
+
+.order-panel .lineup-player-meta .jersey {
+  margin-left: 0;
+}
+
+.lineup-attendance-badge {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  min-width: 41px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  padding: 3px 5px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.lineup-attendance-badge.attending {
+  color: #13734e;
+  border-color: #b7e4cf;
+  background: #ecf8f1;
+}
+
+.lineup-attendance-badge.absent {
+  color: #b24250;
+  border-color: #eed1d7;
+  background: #fff0f2;
+}
+
+.lineup-attendance-badge.undecided {
+  color: #946414;
+  border-color: #efdfb7;
+  background: #fff8e9;
+}
+
+.lineup-attendance-badge.unanswered {
+  color: #63798b;
+  border-color: #dbe4eb;
+  background: #f2f6f9;
+}
+
+@media (max-width: 640px) {
+  .order-panel span.lineup-player-meta {
+    gap: 4px;
+  }
+
+  .lineup-attendance-badge {
+    min-width: 38px;
+    padding: 2px 3px;
+  }
+}

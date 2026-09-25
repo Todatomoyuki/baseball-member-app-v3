@@ -1,9 +1,12 @@
 "use client";
+import { useState } from "react";
 import { CalendarDays, ChevronDown, FileDown, MapPin } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import type { TeamData } from "@/lib/model";
 import { mapLinks, type ScheduleGame } from "@/lib/schedule";
 import { setFieldUpdater } from "../lib/lineup-actions";
+import { NamePickerModal } from "../modals/NamePickerModal";
+import { scheduleNameOptions } from "../lib/schedule-options";
 
 type ScheduleOption = Omit<ScheduleGame, "responses">;
 
@@ -59,10 +62,12 @@ export function MatchInfoPanel({
   teamPickerOpen: boolean;
   onOpenTeamPicker: () => void;
 }) {
+  const [locationPickerOpen, setLocationPickerOpen] = useState(false);
   const schedules = scheduleOptions.filter((game) => game.date === data.date).sort(compareSchedules);
   const linked = data.scheduleId !== null;
   const detailsReadOnly = readOnly || linked;
   const links = mapLinks(data);
+  const locations = scheduleNameOptions(scheduleOptions, { title: [], opponent: [], location: [data.location] }).location;
 
   const changeDate = (date: string) => {
     if (!date) return;
@@ -174,13 +179,17 @@ export function MatchInfoPanel({
 
         <label>
           場所
-          <Input
-            maxLength={200}
-            value={data.location}
+          <button
+            type="button"
+            className="combobox-trigger"
+            aria-haspopup="dialog"
+            aria-expanded={!detailsReadOnly && locationPickerOpen}
             disabled={detailsReadOnly}
-            placeholder={detailsReadOnly ? "未設定" : "球場名・住所"}
-            onChange={(e) => edit(setFieldUpdater("location", e.target.value))}
-          />
+            onClick={() => setLocationPickerOpen(true)}
+          >
+            <span className={data.location ? "" : "placeholder"}>{data.location || (detailsReadOnly ? "未設定" : "場所を検索・追加")}</span>
+            {!detailsReadOnly && <ChevronDown size={16} />}
+          </button>
         </label>
 
         {(links || data.mapUrl) && (
@@ -226,6 +235,19 @@ export function MatchInfoPanel({
           </div>
         </div>
       </div>
+      <NamePickerModal
+        open={!detailsReadOnly && locationPickerOpen}
+        onClose={() => setLocationPickerOpen(false)}
+        title="場所を選択"
+        description="登録済みの場所を検索、または新しい球場名・住所を追加できます。"
+        placeholder="球場名・住所を検索・入力"
+        searchLabel="場所を検索"
+        emptyMessage="球場名や住所を入力すると追加できます。"
+        options={locations}
+        maxLength={200}
+        allowClear
+        onSelect={(name) => { edit(setFieldUpdater("location", name)); setLocationPickerOpen(false); }}
+      />
     </aside>
   );
 }

@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { GripVertical } from "lucide-react";
+import type { ScheduleResponse } from "@/lib/schedule";
 import {
   changeMode,
   lineupCapacity,
@@ -48,6 +49,7 @@ function movementKey(data: TeamData) {
  */
 export function OrderPanel({
   data,
+  attendance,
   readOnly,
   edit,
   bench,
@@ -58,6 +60,7 @@ export function OrderPanel({
   onAddPlayer,
 }: {
   data: TeamData;
+  attendance: Record<string, ScheduleResponse> | null;
   readOnly: boolean;
   edit: (fn: (d: TeamData) => TeamData) => void;
   bench: Player[];
@@ -177,7 +180,7 @@ export function OrderPanel({
         </div>
         <div className="column-labels">
           <span>打順</span>
-          <span>選手 / 背番号</span>
+          <span>{attendance === null ? "選手 / 背番号" : "選手 / 出欠 / 背番号"}</span>
           <span>守備</span>
         </div>
 
@@ -189,23 +192,30 @@ export function OrderPanel({
               index={i}
               position={slot.position}
               player={data.players.find((p) => p.id === slot.playerId)}
+              attendance={attendance === null || !slot.playerId ? null : attendance[slot.playerId]}
               onPickPlayer={() => onPickPlayer(`slot:${i}`)}
               onPickPosition={() => onPickPosition(i)}
             />
           ))}
           {data.mode === "dh" && (
-            <PitcherRow readOnly={readOnly} pitcher={pitcher} onPick={() => onPickPlayer("pitcher")} />
+            <PitcherRow
+              readOnly={readOnly}
+              pitcher={pitcher}
+              attendance={attendance === null || !pitcher ? null : attendance[pitcher.id]}
+              onPick={() => onPickPlayer("pitcher")}
+            />
           )}
         </div>
 
         <BenchSection
           readOnly={readOnly}
           bench={bench}
+          attendance={attendance}
           totalPlayers={data.players.length}
           onEditPlayer={onEditPlayer}
           onAddPlayer={onAddPlayer}
         />
-        <AbsentSection readOnly={readOnly} absent={absent} onEditPlayer={onEditPlayer} />
+        <AbsentSection readOnly={readOnly} absent={absent} attendance={attendance} onEditPlayer={onEditPlayer} />
       </DndContext>
     </section>
   );

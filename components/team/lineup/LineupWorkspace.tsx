@@ -3,11 +3,10 @@ import type { Player, TeamData } from "@/lib/model";
 import type { ScheduleGame, ScheduleResponse } from "@/lib/schedule";
 import { MatchInfoPanel } from "./MatchInfoPanel";
 import { OrderPanel } from "./OrderPanel";
-import { AttendancePanel } from "./AttendancePanel";
 
 /**
  * 「オーダー」タブのレイアウト。
- * 試合情報、オーダー編集、選択した試合の出欠を並べます。
+ * 試合情報とオーダー編集を並べ、出欠は各選手の行に表示します。
  */
 export function LineupWorkspace({
   data,
@@ -67,6 +66,7 @@ export function LineupWorkspace({
       />
       <OrderPanel
         data={data}
+        attendance={data.scheduleId !== null && data.scheduleId === attendanceScheduleId ? attendance : null}
         readOnly={readOnly}
         edit={edit}
         bench={bench}
@@ -75,13 +75,6 @@ export function LineupWorkspace({
         onPickPosition={onPickPosition}
         onEditPlayer={onEditPlayer}
         onAddPlayer={onAddPlayer}
-      />
-      <AttendancePanel
-        players={data.players}
-        responses={attendance}
-        linked={data.scheduleId !== null}
-        pending={data.scheduleId !== attendanceScheduleId}
-        onOpenSchedule={onOpenSchedule}
       />
     </div>
   );

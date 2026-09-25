@@ -13,6 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import type { Player } from "@/lib/model";
 import type { EquipmentItem } from "@/lib/equipment";
+import { createEntityId } from "@/lib/entity-id";
 
 type Props = {
   target: EquipmentItem | "new" | null;
@@ -77,7 +78,7 @@ function EquipmentEditorForm({ target, players, onClose, onSave, onDelete }: Omi
     onSave({
       id:
         item?.id ??
-        crypto.randomUUID(),
+        createEntityId(),
 
       name: name.trim(),
 

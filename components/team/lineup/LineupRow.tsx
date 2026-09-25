@@ -2,6 +2,7 @@
 import { GripVertical } from "lucide-react";
 import type { Player, Position } from "@/lib/model";
 import { DragButton } from "../dnd/DragButton";
+import { AttendanceBadge, attendanceDescription, type PlayerAttendance } from "./AttendanceBadge";
 
 /**
  * スターティングオーダーの 1 行。
@@ -12,6 +13,7 @@ export function LineupRow({
   readOnly,
   position,
   player,
+  attendance,
   onPickPlayer,
   onPickPosition,
 }: {
@@ -20,6 +22,7 @@ export function LineupRow({
   readOnly: boolean;
   position: Position;
   player?: Player;
+  attendance: PlayerAttendance;
   onPickPlayer: () => void;
   onPickPosition: () => void;
 }) {
@@ -38,13 +41,16 @@ export function LineupRow({
       <DragButton
         item={{ kind: "player", key: `slot:${index}` }}
         className={`player-slot ${!player ? "empty" : ""}`}
-        label={`${index + 1}番 ${player?.name ?? (readOnly ? "未設定" : "選手を選択")}`}
+        label={`${index + 1}番 ${player?.name ?? (readOnly ? "未設定" : "選手を選択")}${attendanceDescription(attendance)}`}
         onClick={onPickPlayer}
         disabled={readOnly}
       >
         {!readOnly && <GripVertical size={16} />}
         <span className="player-name">{player?.name ?? (readOnly ? "未設定" : "選手を選択")}</span>
-        <span className="jersey">{player ? `#${player.number}` : readOnly ? "—" : "＋"}</span>
+        <span className="lineup-player-meta">
+          <AttendanceBadge response={attendance} />
+          <span className="jersey">{player ? `#${player.number}` : readOnly ? "—" : "＋"}</span>
+        </span>
       </DragButton>
 
       <DragButton

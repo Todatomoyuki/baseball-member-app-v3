@@ -1,8 +1,10 @@
 "use client";
 import { GripVertical, Plus, Users } from "lucide-react";
 import type { Player } from "@/lib/model";
+import type { ScheduleResponse } from "@/lib/schedule";
 import { DragButton } from "../dnd/DragButton";
 import { PlayerZone } from "../dnd/PlayerZone";
+import { AttendanceBadge, attendanceDescription } from "./AttendanceBadge";
 
 /** 登録できる選手の上限 */
 export const MAX_PLAYERS = 30;
@@ -10,12 +12,14 @@ export const MAX_PLAYERS = 30;
 /** ベンチ（控え選手）エリア。ここへドロップするとスタメンから外れます。 */
 export function BenchSection({
   bench,
+  attendance,
   readOnly,
   totalPlayers,
   onEditPlayer,
   onAddPlayer,
 }: {
   bench: Player[];
+  attendance: Record<string, ScheduleResponse> | null;
   readOnly: boolean;
   totalPlayers: number;
   onEditPlayer: (player: Player) => void;
@@ -35,13 +39,16 @@ export function BenchSection({
                 key={p.id}
                 item={{ kind: "player", key: `bench:${p.id}` }}
                 className="bench-player"
-                label={`控え ${p.name}`}
+                label={`控え ${p.name}${attendanceDescription(attendance === null ? null : attendance[p.id])}`}
                 onClick={() => onEditPlayer(p)}
                 disabled={readOnly}
               >
                 {!readOnly && <GripVertical size={15} />}
                 <span>{p.name}</span>
-                <span className="jersey">#{p.number}</span>
+                <span className="lineup-player-meta">
+                  <AttendanceBadge response={attendance === null ? null : attendance[p.id]} />
+                  <span className="jersey">#{p.number}</span>
+                </span>
               </DragButton>
             ))}
           </div>

@@ -3,28 +3,6 @@
 .schedule-reminder-list { display: grid; gap: 10px; margin: 0 0 18px; padding: 0; list-style: none; }
 .schedule-reminder-list li { display: grid; gap: 5px; padding: 12px; border-radius: 9px; background: #f1f7fc; color: #345970; font-size: 13px; overflow-wrap: anywhere; }
 .schedule-reminder-list span { color: #647e90; }
-.lineup-attendance-panel { min-width: 0; padding: 18px; }
-.lineup-attendance-panel > h2 { display: flex; align-items: center; gap: 7px; font-size: 16px; }
-.lineup-attendance-panel > .secondary { width: 100%; margin-top: 14px; padding-inline: 8px; font-size: 12px; }
-.lineup-attendance-groups { display: grid; gap: 14px; }
-.lineup-attendance-group { min-width: 0; }
-.lineup-attendance-group h3 { display: flex; align-items: center; justify-content: space-between; margin: 0 0 7px; padding: 6px 8px; border-radius: 6px; background: #edf1f5; color: #62768a; font-size: 13px; font-weight: 700; }
-.lineup-attendance-group.attending h3 { background: #e5f5ee; color: #1b7456; }
-.lineup-attendance-group.absent h3 { background: #fff0f0; color: #a34449; }
-.lineup-attendance-group.undecided h3 { background: #fff7e2; color: #926905; }
-.lineup-attendance-group h3 span { font-size: 11px; }
-.lineup-attendance-group ul { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
-.lineup-attendance-group li > span { display: flex; align-items: baseline; gap: 7px; font-size: 13px; overflow-wrap: anywhere; }
-.lineup-attendance-group small { flex-shrink: 0; color: #7b8d9a; font-size: 10px; }
-.lineup-attendance-group li > p { margin: 4px 0 0; padding: 6px 8px; border-radius: 6px; background: #f7f9fb; color: #647c8f; font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
-.lineup-attendance-empty, .lineup-attendance-help { margin: 0; color: #7b8d9a; font-size: 12px; line-height: 1.7; }
-@media (min-width: 761px) and (max-width: 1099px) {
-  .lineup-attendance-panel { grid-column: 2; }
-}
-@media (min-width: 1100px) {
-  .workspace.lineup-workspace { grid-template-columns: 240px minmax(0, 1fr) 220px; gap: 16px; }
-  .lineup-workspace .match-panel { padding: 18px; }
-}
 .schedule-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
 .schedule-toolbar .primary { min-height: 44px; }
 .schedule-save-state,
@@ -35,15 +13,24 @@
 .schedule-save-state.conflict,
 .schedule-form-save-state.error,
 .schedule-form-save-state.conflict { color: #b02d32; }
-.schedule-game-list { display: grid; gap: 18px; }
-.schedule-game-card { min-width: 0; padding: 20px; overflow: hidden; }
+.schedule-game-list { display: grid; gap: 10px; }
+.schedule-game-card { min-width: 0; overflow: hidden; }
 .schedule-game-card.featured { border-top: 4px solid var(--primary); }
-.schedule-game-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
-.schedule-game-heading-copy { min-width: 0; }
+.schedule-game-heading { margin: 0; }
+.schedule-game-summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; min-height: 84px; padding: 16px 20px; background: #fff; text-align: left; }
+.schedule-game-summary:focus-visible { outline: 3px solid #299aec; outline-offset: -3px; }
+.schedule-game-summary[aria-expanded="true"] { border-bottom: 1px solid var(--border); }
+.schedule-game-summary-end { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.schedule-game-summary-end > svg { color: #72899b; transition: transform 150ms ease; }
+.schedule-game-summary[aria-expanded="true"] .schedule-game-summary-end > svg { transform: rotate(180deg); }
+.schedule-game-heading-copy { display: block; min-width: 0; }
+.schedule-game-heading-copy > .schedule-featured-label { display: block; }
+.schedule-game-heading-copy > strong { display: block; color: #243f54; font-size: 17px; line-height: 1.5; overflow-wrap: anywhere; }
+.schedule-game-summary-info { display: block; margin-top: 4px; color: #728497; font-size: 12px; font-weight: 400; overflow-wrap: anywhere; }
+.schedule-game-details { padding: 16px 20px 20px; }
 .schedule-featured-label { margin: 0 0 8px; color: #0876c9; font-size: 12px; font-weight: 800; }
-.schedule-game-date { display: flex; align-items: center; gap: 7px; margin: 0 0 8px; color: #305775; font-size: 14px; font-weight: 700; }
+.schedule-game-date { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 7px; margin: 0 0 5px; color: #305775; font-size: 13px; font-weight: 700; }
 .schedule-game-date svg { flex-shrink: 0; }
-.schedule-game-heading h2 { margin: 0; font-size: 21px; line-height: 1.5; overflow-wrap: anywhere; }
 .schedule-edit-button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; flex-shrink: 0; min-height: 44px; padding: 8px 11px; border: 1px solid #dbe5ee; border-radius: 8px; background: #fff; color: #37617f; font-size: 12px; }
 .schedule-game-info { display: grid; gap: 9px; margin: 17px 0; }
 .schedule-game-info p { display: flex; align-items: flex-start; gap: 8px; margin: 0; color: #4c6378; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
@@ -111,6 +98,9 @@
 .schedule-game-form { display: grid; gap: 16px; }
 .schedule-date-time-fields { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 12px; }
 .schedule-game-form input { display: block; margin-top: 7px; font-size: 16px; font-weight: 400; }
+.schedule-name-trigger { width: 100%; margin-top: 7px; min-height: 48px; font-size: 16px; font-weight: 400; }
+.schedule-name-trigger > span { overflow-wrap: anywhere; }
+.schedule-name-trigger > svg { flex-shrink: 0; }
 .schedule-game-form input[type="date"],
 .schedule-game-form input[type="time"] { padding-inline: 9px; max-width: 100%; }
 .schedule-game-form label > .schedule-required { color: #0876c9; font-weight: 700; }
@@ -121,10 +111,11 @@
 .schedule-form-error p { margin: 0 0 6px; }
 .schedule-form-save-state { margin: 0; }
 @media (max-width: 600px) {
-  .schedule-game-list { gap: 14px; }
-  .schedule-game-card { padding: 16px 14px; }
-  .schedule-game-heading h2 { font-size: 19px; }
-  .schedule-game-date { font-size: 13px; }
+  .schedule-game-summary { padding: 13px 14px; }
+  .schedule-game-summary-end { flex-direction: column; gap: 8px; }
+  .schedule-game-heading-copy > strong { font-size: 16px; }
+  .schedule-game-details { padding: 14px; }
+  .schedule-game-date { font-size: 12px; }
   .schedule-edit-button { min-width: 44px; padding: 8px; }
   .schedule-attendance-buttons { gap: 6px; }
   .schedule-attendance-button { min-height: 54px; gap: 4px; font-size: 14px; }
@@ -133,7 +124,6 @@
   .schedule-date-time-fields { gap: 9px; }
 }
 @media (min-width: 850px) {
-  .schedule-game-card { padding: 24px; }
   .schedule-game-info { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .schedule-attendance-button { min-height: 52px; }
 }
