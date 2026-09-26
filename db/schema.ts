@@ -159,6 +159,37 @@ export const plateAppearances = sqliteTable("plate_appearances", {
     }).onDelete("cascade"),
 ]);
 
+// Keep one resumable run and one personal best per member and game.
+// result_json contains only the last turn's animation, not a growing history.
+export const miniGameRuns = sqliteTable("mini_game_runs", {
+    gameId: text("game_id").notNull(),
+    playerId: text("player_id").notNull().references(() => players.id, { onDelete: "cascade" }),
+    runId: text("run_id").notNull(),
+    turn: integer("turn").notNull().default(0),
+    balance: integer("balance").notNull(),
+    status: text("status").notNull(),
+    lastRequestId: text("last_request_id").notNull(),
+    resultJson: text("result_json").notNull().default("null"),
+    startedAt: integer("started_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+}, (table) => [
+    primaryKey({ columns: [table.gameId, table.playerId] }),
+    check("mini_game_runs_turn_check", sql`${table.turn} >= 0`),
+    check("mini_game_runs_balance_check", sql`${table.balance} >= 0`),
+    check("mini_game_runs_status_check", sql`${table.status} IN ('playing', 'finished')`),
+]);
+
+export const miniGameScores = sqliteTable("mini_game_scores", {
+    gameId: text("game_id").notNull(),
+    playerId: text("player_id").notNull().references(() => players.id, { onDelete: "cascade" }),
+    score: integer("score").notNull(),
+    achievedAt: integer("achieved_at").notNull(),
+}, (table) => [
+    primaryKey({ columns: [table.gameId, table.playerId] }),
+    index("mini_game_scores_ranking_idx").on(table.gameId, sql`${table.score} DESC`, sql`${table.achievedAt} ASC`, sql`${table.playerId} ASC`),
+    check("mini_game_scores_score_check", sql`${table.score} >= 0`),
+]);
+
 export const authConfig = sqliteTable("auth_config", {
     id: integer("id").primaryKey(),
     salt: text("salt").notNull(),

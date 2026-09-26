@@ -24,6 +24,8 @@
 | `workers/weekly-equipment/` | 独立して動く週次LINE通知Worker |
 | `workers/weekly-schedule/` | 毎週日曜0時（日本時間）に予定・出欠をオーダーへ反映するWorker |
 
+YGミニゲームのルール、ランキング保存、ゲームを追加する際の構成とDB適用手順は [ミニゲームの開発・運用ガイド](mini-games.md) を参照してください。
+
 `components/ui/`、`vendor/`、`build/sites-vite-plugin.ts` は提供元の共通部品です。通常の機能改修は各機能のコンポーネントで行います。設定やビルドから参照されるスキーマ、認証補助、スクリプトは、画面から直接呼ばれていなくても削除しません。
 
 ## 保存と通信
