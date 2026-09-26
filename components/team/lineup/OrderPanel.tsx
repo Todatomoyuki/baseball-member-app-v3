@@ -1,6 +1,10 @@
 "use client";
 import { useState } from "react";
-import { DndContext, closestCenter } from "@dnd-kit/core";
+import {
+  DndContext,
+  pointerWithin,
+  type CollisionDetection,
+} from "@dnd-kit/core";
 import { GripVertical } from "lucide-react";
 import type { ScheduleResponse } from "@/lib/schedule";
 import {
@@ -24,10 +28,16 @@ type PendingMove = {
   updater: (data: TeamData) => TeamData;
 };
 
-function playerDestination(data: TeamData, playerId: string): GotoMoveDestination {
+function playerDestination(
+  data: TeamData,
+  playerId: string,
+): GotoMoveDestination {
   if (data.absentIds.includes(playerId)) return "absent";
-  if (data.slots.some((slot) => slot.playerId === playerId) ||
-    (data.mode === "dh" && data.pitcher === playerId)) return "starter";
+  if (
+    data.slots.some((slot) => slot.playerId === playerId) ||
+    (data.mode === "dh" && data.pitcher === playerId)
+  )
+    return "starter";
   return "bench";
 }
 
@@ -35,7 +45,11 @@ function playerDestination(data: TeamData, playerId: string): GotoMoveDestinatio
 // if a remote update arrives while the confirmation is open.
 function movementKey(data: TeamData) {
   return JSON.stringify([
-    data.mode, data.slots, data.pitcher, data.benchOrder, data.absentIds,
+    data.mode,
+    data.slots,
+    data.pitcher,
+    data.benchOrder,
+    data.absentIds,
     data.players.map((player) => [player.id, player.number]),
   ]);
 }
@@ -76,16 +90,27 @@ export function OrderPanel({
   const capacity = lineupCapacity(data);
   const pitcher = data.players.find((p) => p.id === data.pitcher);
   const [pendingMove, setPendingMove] = useState<PendingMove | null>(null);
-  const warningOpen = !readOnly && pendingMove !== null && pendingMove.source === data;
+  const warningOpen =
+    !readOnly && pendingMove !== null && pendingMove.source === data;
 
   function confirmMove() {
     const move = pendingMove;
     setPendingMove(null);
     if (readOnly || !move || move.source !== data) return;
-    edit((current) => movementKey(current) === movementKey(move.source)
-      ? move.updater(current)
-      : current);
+    edit((current) =>
+      movementKey(current) === movementKey(move.source)
+        ? move.updater(current)
+        : current,
+    );
   }
+  const collisionDetection: CollisionDetection = (args) =>
+    pointerWithin({
+      ...args,
+      droppableContainers: args.droppableContainers.filter(
+        (container) =>
+          container.data.current?.kind === args.active.data.current?.kind,
+      ),
+    });
 
   return (
     <section className="order-panel">
@@ -97,7 +122,9 @@ export function OrderPanel({
           value={data.mode}
           disabled={readOnly}
           onChange={(e) =>
-            edit((d) => changeMode(d, e.target.value as "normal" | "dh" | "all" ,))
+            edit((d) =>
+              changeMode(d, e.target.value as "normal" | "dh" | "all"),
+            )
           }
         >
           <option value="normal">9人制</option>
@@ -120,7 +147,9 @@ export function OrderPanel({
               { length: MAX_LINEUP_PLAYERS - 9 },
               (_, index) => index + 10,
             ).map((count) => (
-              <option key={count} value={count}>{count}人</option>
+              <option key={count} value={count}>
+                {count}人
+              </option>
             ))}
           </select>
         )}
@@ -149,9 +178,11 @@ export function OrderPanel({
           const updater = dragEndUpdater(event);
           if (!updater) return;
           const next = updater(structuredClone(data));
-          const warningPlayer = data.players.find((player) =>
-            player.number === "11" &&
-            playerDestination(data, player.id) !== playerDestination(next, player.id),
+          const warningPlayer = data.players.find(
+            (player) =>
+              player.number === "11" &&
+              playerDestination(data, player.id) !==
+                playerDestination(next, player.id),
           );
           if (warningPlayer) {
             setPendingMove({
@@ -163,14 +194,7 @@ export function OrderPanel({
           }
           edit(updater);
         }}
-        collisionDetection={(args) =>
-          closestCenter({
-            ...args,
-            droppableContainers: args.droppableContainers.filter(
-              (c) => c.data.current?.kind === args.active.data.current?.kind,
-            ),
-          })
-        }
+        collisionDetection={collisionDetection}
       >
         <div className="section-title">
           <span>スターティングオーダー</span>
@@ -180,7 +204,9 @@ export function OrderPanel({
         </div>
         <div className="column-labels">
           <span>打順</span>
-          <span>{attendance === null ? "選手 / 背番号" : "選手 / 出欠 / 背番号"}</span>
+          <span>
+            {attendance === null ? "選手 / 背番号" : "選手 / 出欠 / 背番号"}
+          </span>
           <span>守備</span>
         </div>
 
@@ -192,7 +218,11 @@ export function OrderPanel({
               index={i}
               position={slot.position}
               player={data.players.find((p) => p.id === slot.playerId)}
-              attendance={attendance === null || !slot.playerId ? null : attendance[slot.playerId]}
+              attendance={
+                attendance === null || !slot.playerId
+                  ? null
+                  : attendance[slot.playerId]
+              }
               onPickPlayer={() => onPickPlayer(`slot:${i}`)}
               onPickPosition={() => onPickPosition(i)}
             />
@@ -201,7 +231,9 @@ export function OrderPanel({
             <PitcherRow
               readOnly={readOnly}
               pitcher={pitcher}
-              attendance={attendance === null || !pitcher ? null : attendance[pitcher.id]}
+              attendance={
+                attendance === null || !pitcher ? null : attendance[pitcher.id]
+              }
               onPick={() => onPickPlayer("pitcher")}
             />
           )}
@@ -215,7 +247,37 @@ export function OrderPanel({
           onEditPlayer={onEditPlayer}
           onAddPlayer={onAddPlayer}
         />
-        <AbsentSection readOnly={readOnly} absent={absent} attendance={attendance} onEditPlayer={onEditPlayer} />
+        <AbsentSection
+          readOnly={readOnly}
+          absent={absent}
+          attendance={attendance}
+          onEditPlayer={onEditPlayer}
+          onMoveNonAttendingToAbsent={() => {
+            if (!attendance) return;
+
+            edit((current) => {
+              const nonAttendingBenchIds = new Set(
+                bench
+                  .filter(
+                    (player) => attendance[player.id]?.status !== "attending",
+                  )
+                  .map((player) => player.id),
+              );
+
+              // ベンチ順から外す
+              current.benchOrder = current.benchOrder.filter(
+                (id) => !nonAttendingBenchIds.has(id),
+              );
+
+              // 不参加へ追加
+              current.absentIds = Array.from(
+                new Set([...current.absentIds, ...nonAttendingBenchIds]),
+              );
+
+              return current;
+            });
+          }}
+        />
       </DndContext>
     </section>
   );

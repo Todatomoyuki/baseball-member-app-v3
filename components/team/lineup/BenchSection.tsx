@@ -27,11 +27,32 @@ export function BenchSection({
 }) {
   return (
     <>
-      <div className="section-title bench-title">
-        <span>ベンチ</span>
-        <span>{bench.length}人</span>
-      </div>
-      <PlayerZone zone="bench" disabled={readOnly}>
+      <PlayerZone
+        zone="bench"
+        disabled={readOnly}
+        empty={bench.length === 0}
+        label={
+          <div className="section-title bench-title">
+            <span>ベンチ</span>
+            <span>{bench.length}人</span>
+          </div>
+        }
+        footer={
+          !readOnly ? (
+            <button
+              className="add-player-link"
+              onClick={onAddPlayer}
+              disabled={totalPlayers >= MAX_PLAYERS}
+            >
+              <Plus size={16} />
+              選手を登録{" "}
+              <span>
+                {totalPlayers}/{MAX_PLAYERS}
+              </span>
+            </button>
+          ) : null
+        }
+      >
         {bench.length ? (
           <div className="bench-grid">
             {bench.map((p) => (
@@ -46,7 +67,9 @@ export function BenchSection({
                 {!readOnly && <GripVertical size={15} />}
                 <span>{p.name}</span>
                 <span className="lineup-player-meta">
-                  <AttendanceBadge response={attendance === null ? null : attendance[p.id]} />
+                  <AttendanceBadge
+                    response={attendance === null ? null : attendance[p.id]}
+                  />
                   <span className="jersey">#{p.number}</span>
                 </span>
               </DragButton>
@@ -59,23 +82,10 @@ export function BenchSection({
               {readOnly
                 ? "ベンチの選手はいません"
                 : totalPlayers
-                ? "ここに移動するとベンチに戻せます"
-                : "選手を登録してオーダーを組みましょう"}
+                  ? "ここに移動するとベンチに戻せます"
+                  : "選手を登録してオーダーを組みましょう"}
             </p>
           </div>
-        )}
-        {!readOnly && (
-          <button
-            className="add-player-link"
-            onClick={onAddPlayer}
-            disabled={totalPlayers >= MAX_PLAYERS}
-          >
-            <Plus size={16} />
-            選手を登録{" "}
-            <span>
-              {totalPlayers}/{MAX_PLAYERS}
-            </span>
-          </button>
         )}
       </PlayerZone>
     </>

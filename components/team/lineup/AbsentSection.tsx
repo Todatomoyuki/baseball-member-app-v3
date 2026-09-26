@@ -12,19 +12,27 @@ export function AbsentSection({
   attendance,
   readOnly,
   onEditPlayer,
+  onMoveNonAttendingToAbsent,
 }: {
   absent: Player[];
   attendance: Record<string, ScheduleResponse> | null;
   readOnly: boolean;
   onEditPlayer: (player: Player) => void;
+  onMoveNonAttendingToAbsent: () => void;
 }) {
   return (
     <>
-      <div className="section-title absent-title">
-        <span>不参加</span>
-        <span>{absent.length}人</span>
-      </div>
-      <PlayerZone zone="absent" disabled={readOnly}>
+      <PlayerZone
+        zone="absent"
+        disabled={readOnly}
+        empty={absent.length === 0}
+        label={
+          <div className="section-title absent-title">
+            <span>不参加</span>
+            <span>{absent.length}人</span>
+          </div>
+        }
+      >
         {absent.length ? (
           <div className="bench-grid">
             {absent.map((p) => (
@@ -39,14 +47,18 @@ export function AbsentSection({
                 {!readOnly && <GripVertical size={15} />}
                 <span>{p.name}</span>
                 <span className="lineup-player-meta">
-                  <AttendanceBadge response={attendance === null ? null : attendance[p.id]} />
+                  <AttendanceBadge
+                    response={attendance === null ? null : attendance[p.id]}
+                  />
                   <span className="jersey">#{p.number}</span>
                 </span>
               </DragButton>
             ))}
           </div>
         ) : (
-          <div className="empty-absent">{readOnly ? "不参加の選手はいません" : "来ない選手をここに移動"}</div>
+          <div className="empty-absent">
+            {readOnly ? "不参加の選手はいません" : "来ない選手をここに移動"}
+          </div>
         )}
       </PlayerZone>
     </>

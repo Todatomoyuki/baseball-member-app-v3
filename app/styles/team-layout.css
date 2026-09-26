@@ -475,6 +475,18 @@ footer {
   outline-offset: 2px;
   background: #e8f5ff !important;
 }
+.bench-bulk-button {
+  margin-top: 8px;
+  margin-left: auto;
+  margin-right: 8px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid #bbb;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+}
 .order-number {
   display: flex;
   flex-direction: column;
